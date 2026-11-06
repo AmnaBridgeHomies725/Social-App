@@ -79,10 +79,20 @@
   box-sizing: border-box;
 }
 
+img,
+picture,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
 html,
 body,
 #app {
   min-height: 100%;
+  width: 100%;
 }
 
 body {
@@ -461,4 +471,3 @@ a {
     transform: translateY(0);
   }
 }
-
