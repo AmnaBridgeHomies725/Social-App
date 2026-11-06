@@ -10,8 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
+import { Route as CreatePostRouteImport } from './routes/create-post'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ApiPostRouteImport } from './routes/api/post'
 import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -19,14 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
+const CreatePostRoute = CreatePostRouteImport.update({
+  id: '/create-post',
+  path: '/create-post',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPostRoute = ApiPostRouteImport.update({
+  id: '/api/post',
+  path: '/api/post',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PostsPostIdRoute = PostsPostIdRouteImport.update({
@@ -37,35 +43,45 @@ const PostsPostIdRoute = PostsPostIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/create-post': typeof CreatePostRoute
   '/settings': typeof SettingsRoute
+  '/api/post': typeof ApiPostRoute
   '/posts/$postId': typeof PostsPostIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/create-post': typeof CreatePostRoute
   '/settings': typeof SettingsRoute
+  '/api/post': typeof ApiPostRoute
   '/posts/$postId': typeof PostsPostIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/create-post': typeof CreatePostRoute
   '/settings': typeof SettingsRoute
+  '/api/post': typeof ApiPostRoute
   '/posts/$postId': typeof PostsPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/settings' | '/posts/$postId'
+  fullPaths: '/' | '/create-post' | '/settings' | '/api/post' | '/posts/$postId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/settings' | '/posts/$postId'
-  id: '__root__' | '/' | '/about' | '/settings' | '/posts/$postId'
+  to: '/' | '/create-post' | '/settings' | '/api/post' | '/posts/$postId'
+  id:
+    | '__root__'
+    | '/'
+    | '/create-post'
+    | '/settings'
+    | '/api/post'
+    | '/posts/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
+  CreatePostRoute: typeof CreatePostRoute
   SettingsRoute: typeof SettingsRoute
+  ApiPostRoute: typeof ApiPostRoute
   PostsPostIdRoute: typeof PostsPostIdRoute
 }
 
@@ -78,11 +94,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
+    '/create-post': {
+      id: '/create-post'
+      path: '/create-post'
+      fullPath: '/create-post'
+      preLoaderRoute: typeof CreatePostRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -90,6 +106,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/post': {
+      id: '/api/post'
+      path: '/api/post'
+      fullPath: '/api/post'
+      preLoaderRoute: typeof ApiPostRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/posts/$postId': {
@@ -104,8 +127,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
+  CreatePostRoute: CreatePostRoute,
   SettingsRoute: SettingsRoute,
+  ApiPostRoute: ApiPostRoute,
   PostsPostIdRoute: PostsPostIdRoute,
 }
 export const routeTree = rootRouteImport

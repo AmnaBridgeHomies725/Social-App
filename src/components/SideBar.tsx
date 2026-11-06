@@ -1,43 +1,49 @@
 import { Link } from "@tanstack/react-router";
-import "../styles/SideBar.css";
 
 function SideBar() {
-    return (
-        <aside className="sidebar">
-            <h2 className="sidebar-logo">💬 Social App</h2>
+	const linkClass =
+		"sidebar-link flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent";
+	const activeClass = `${linkClass} bg-accent text-accent-foreground`;
 
-            <p className="sidebar-label">MENU</p>
+	return (
+		<aside className="app-sidebar" aria-label="Main navigation">
+			<h2 className="sidebar-logo">💬 Social App</h2>
 
-            <nav className="sidebar-nav">
-                <Link
-                    to="/"
-                    className="sidebar-link"
-                    activeProps={{
-                        className: "sidebar-link active",
-                    }}
-                >
-                    <span className="icon">🏠</span>
-                    <span className="link-text">Home</span>
-                </Link>
+			<p className="sidebar-menu-label">MENU</p>
 
-                <Link
-                    to="/settings"
-                    className="sidebar-link"
-                    activeProps={{
-                        className: "sidebar-link active",
-                    }}
-                >
-                    <span className="icon">⚙️</span>
-                    <span className="link-text">Settings</span>
-                </Link>
-            </nav>
+			<nav className="sidebar-nav">
+				<Link
+					to="/"
+					className={linkClass}
+					activeProps={{ className: activeClass }}
+				>
+					<span>🏠</span>
+					<span>Home</span>
+				</Link>
+				<Link
+					to="/create-post"
+					className={linkClass}
+					activeProps={{ className: activeClass }}
+				>
+					<span>✏️</span>
+					<span>Create Post</span>
+				</Link>
+				<Link
+					to="/settings"
+					className={linkClass}
+					activeProps={{ className: activeClass }}
+				>
+					<span>⚙️</span>
+					<span>Settings</span>
+				</Link>
+			</nav>
 
-            <div className="sidebar-bottom">
-                <h3>Social App</h3>
-                <p>Made with React and TypeScript</p>
-            </div>
-        </aside>
-    );
+			<div className="sidebar-footer">
+				<h3 className="font-semibold">Social App</h3>
+				<p>Made with React and TypeScript</p>
+			</div>
+		</aside>
+	);
 }
 
 export default SideBar;

@@ -1,28 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import "../styles/Settings.css";
+import { createFileRoute } from '@tanstack/react-router'
 
-function SettingsPage() {
-  return (
-    <div className="settings-page">
-      <h1 className="text-2xl font-bold text-black">
-        Settings Page
-      </h1>
+export const Route = createFileRoute('/settings')({
+  component: RouteComponent,
+})
 
-      <Button className="mt-4 bg-blue-600 px-6 py-3 text-white hover:bg-blue-700">
-        Click Me
-      </Button>
-	  <Button variant="default">Save</Button>
-<Button
-  variant="default"
-  className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
->
-  Save
-</Button>
-    </div>
-  );
+function RouteComponent() {
+  return <div className='w-300px h-100px text-white'>Settings</div>
 }
-
-export const Route = createFileRoute("/settings")({
-  component: SettingsPage,
-});

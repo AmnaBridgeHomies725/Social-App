@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "generate-routes": "vite build",
-    "build": "vite build",
+    "build": "node --max-old-space-size=4096 node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "format": "biome format",
     "lint": "biome lint",
@@ -24,7 +24,9 @@
     "@tanstack/react-start": "1.169.4",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
+    "dotenv": "^18.0.9",
     "lucide-react": "^1.68.0",
+    "mongoose": "^9.12.0",
     "nitro": "3.0.260610-beta",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
