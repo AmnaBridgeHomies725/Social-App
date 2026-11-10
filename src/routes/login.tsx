@@ -116,17 +116,7 @@ function LoginPage() {
 						</Button>
 
 						<div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 text-xs text-[var(--sea-ink-soft)] space-y-1 mt-4">
-							<p className="font-bold text-[var(--sea-ink)]">Demo Accounts:</p>
-							<p>
-								Admin:{" "}
-								<span className="font-mono text-[var(--sea-ink)]">
-									admin@example.com
-								</span>{" "}
-								/{" "}
-								<span className="font-mono text-[var(--sea-ink)]">
-									Admin@123
-								</span>
-							</p>
+							<p className="font-bold text-[var(--sea-ink)]">Demo Account:</p>
 							<p>
 								User:{" "}
 								<span className="font-mono text-[var(--sea-ink)]">

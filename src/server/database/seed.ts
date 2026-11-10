@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import db from "./db";
-import "./schema";
 
 const users = [
 	{ name: "Admin", email: "admin@example.com", password: "Admin@123" },

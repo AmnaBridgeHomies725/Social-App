@@ -1,100 +1,201 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Send } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPostById } from "../data/postService";
+import { Textarea } from "@/components/ui/textarea";
+import {
+	createCommentServerFn,
+	getPostByIdServerFn,
+} from "../server/post.function";
+import type { Post } from "../types/post";
+
+interface Comment {
+	id: number;
+	post_id: number;
+	user_id: string;
+	comment: string;
+	created_at: string;
+}
+
+type PostWithComments = Omit<Post, "comments"> & {
+	comments: Comment[];
+};
 
 export const Route = createFileRoute("/posts/$postId")({
+	loader: async ({ params }) => {
+		return await getPostByIdServerFn({
+			data: {
+				postId: Number(params.postId),
+			},
+		});
+	},
 	component: PostDetailRoute,
 });
 
-interface PostDetailProps {
-	postId: string;
-}
-
 function PostDetailRoute() {
-	const { postId } = Route.useParams();
+	const post = Route.useLoaderData() as PostWithComments | null;
 
-	return <PostDetail postId={postId} />;
+	return <PostDetail post={post} />;
 }
 
-function PostDetail({ postId }: PostDetailProps) {
-	const post = getPostById(Number(postId));
+interface PostDetailProps {
+	post: PostWithComments | null;
+}
+
+function PostDetail({ post }: PostDetailProps) {
+	const [commentText, setCommentText] = useState("");
+	const [comments, setComments] = useState<Comment[]>(post?.comments ?? []);
+	const [error, setError] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	useEffect(() => {
+		setComments(post?.comments ?? []);
+	}, [post]);
 
 	if (!post) {
 		return (
-			<Card className="mx-auto mt-10 max-w-lg">
-				<CardContent className="p-8 text-center">
-					<h2 className="text-xl font-semibold text-destructive">
-						Post not found!
-					</h2>
-					<Link
-						to="/"
-						className="mt-4 inline-block text-sm text-primary hover:underline"
-					>
-						← Back to Home
-					</Link>
-				</CardContent>
-			</Card>
+			<div className="p-6 text-center">
+				<h2 className="text-xl font-semibold">Post not found</h2>
+				<Link to="/" className="text-blue-500 underline">
+					Back to feed
+				</Link>
+			</div>
 		);
 	}
 
-	return (
-		<div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-6 md:px-8">
-			<div className="mb-4">
-				<Link
-					to="/"
-					className="text-sm text-muted-foreground hover:text-foreground"
-				>
-					← Back to Home
-				</Link>
-			</div>
+	const currentPost = post;
 
-			<Card className="overflow-hidden">
+	async function handleAddComment() {
+		if (!commentText.trim()) {
+			setError("Comment cannot be empty");
+			return;
+		}
+
+		setIsSubmitting(true);
+		setError("");
+
+		try {
+			let userName = "User";
+			const stored = localStorage.getItem("user");
+			if (stored) {
+				try {
+					const u = JSON.parse(stored);
+					if (u.name) userName = u.name;
+				} catch {}
+			}
+
+			await createCommentServerFn({
+				data: {
+					postId: currentPost.id,
+					comment: commentText,
+					userId: userName,
+				},
+			});
+
+			const updatedPost = await getPostByIdServerFn({
+				data: {
+					postId: currentPost.id,
+				},
+			});
+
+			setComments(updatedPost?.comments ?? []);
+			setCommentText("");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Something went wrong");
+		} finally {
+			setIsSubmitting(false);
+		}
+	}
+
+	return (
+		<div className="mx-auto max-w-2xl space-y-4 p-4">
+			<Link to="/" className="text-sm text-blue-500 hover:underline">
+				← Back to feed
+			</Link>
+
+			<Card>
 				<CardHeader>
-					<CardTitle className="text-xl">{post.author}</CardTitle>
+					<CardTitle>{post.author}</CardTitle>
+					<p className="text-sm text-muted-foreground">{post.timestamp}</p>
 				</CardHeader>
 
-				<CardContent className="flex flex-col gap-4">
+				<CardContent className="space-y-4">
 					{post.imageUrl && (
 						<img
 							src={post.imageUrl}
-							alt={`${post.author}'s post`}
-							loading="lazy"
+							alt="Post"
 							className="w-full rounded-lg object-cover"
 						/>
 					)}
 
-					<p className="whitespace-pre-wrap break-words text-base leading-relaxed">
-						{post.text || "No text available"}
-					</p>
+					<p className="whitespace-pre-wrap">{post.text}</p>
 
-					<p className="text-xs text-muted-foreground">
-						{new Date(post.timestamp).toLocaleString()}
-					</p>
-
-					<div className="flex flex-wrap items-center gap-3 border-t pt-4">
+					<div className="flex gap-3">
 						<Badge variant="secondary">❤️ {post.likes} Likes</Badge>
 
-						<Badge variant="secondary">
-							💬 {post.comments.length} Comments
-						</Badge>
+						<Badge variant="secondary">💬 {comments.length} Comments</Badge>
 					</div>
 
-					{post.comments.length > 0 && (
-						<div className="border-t pt-4 space-y-2">
-							<h3 className="text-sm font-semibold">Comments:</h3>
+					<div className="space-y-3 border-t pt-4">
+						<h3 className="font-semibold">Add a comment</h3>
+
+						<div className="flex w-full items-center gap-2">
+							<Textarea
+								rows={1}
+								placeholder="Write a comment..."
+								value={commentText}
+								onChange={(e) => setCommentText(e.target.value)}
+								maxLength={300}
+								className="!h-10 !min-h-0 !max-h-10 flex-1 resize-none overflow-hidden rounded-full py-2"
+							/>
+
+							<Button
+								size="icon"
+								className="h-11 w-11 shrink-0 rounded-full"
+								disabled={!commentText.trim() || isSubmitting}
+								onClick={handleAddComment}
+							>
+								<Send size={18} />
+							</Button>
+						</div>
+
+						<p className="text-xs text-muted-foreground">
+							{commentText.length}/300 characters
+						</p>
+
+						{error && <p className="text-sm text-red-500">{error}</p>}
+					</div>
+
+					<div className="space-y-3 border-t pt-4">
+						<h3 className="font-semibold">Comments</h3>
+
+						{comments.length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								No comments yet. Be the first to comment!
+							</p>
+						) : (
 							<div className="space-y-2">
-								{post.comments.map((comment) => (
+								{comments.map((comment) => (
 									<div
-										key={comment}
-										className="rounded-lg bg-muted p-3 text-sm text-foreground"
+										key={comment.id}
+										className="rounded-lg bg-muted p-3 text-sm"
 									>
-										{comment}
+										<p className="font-semibold">{comment.user_id}</p>
+
+										<p className="mt-1 whitespace-pre-wrap">
+											{comment.comment}
+										</p>
+
+										<p className="mt-2 text-xs text-muted-foreground">
+											{comment.created_at}
+										</p>
 									</div>
 								))}
 							</div>
-						</div>
-					)}
+						)}
+					</div>
 				</CardContent>
 			</Card>
 		</div>
