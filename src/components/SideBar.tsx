@@ -10,9 +10,6 @@ function SideBar() {
 
 	const handleLogout = () => {
 		localStorage.removeItem("user");
-		localStorage.removeItem("token");
-		localStorage.removeItem("email");
-
 		navigate({ to: "/login" });
 	};
 
