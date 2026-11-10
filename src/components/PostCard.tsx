@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { toggleLikeServerFn } from "../server/post.function";
 import type { Post } from "../types/post";
 
 interface PostCardProps {
@@ -12,11 +13,38 @@ interface PostCardProps {
 
 function PostCard({ post, currentUser }: PostCardProps) {
 	const [likes, setLikes] = useState(post.likes);
-	const [liked, setLiked] = useState(false);
+	const [liked, setLiked] = useState(
+		(post as unknown as { isLiked?: boolean }).isLiked || false,
+	);
+	const [isLiking, setIsLiking] = useState(false);
 
-	function handleLike() {
-		setLikes(liked ? likes - 1 : likes + 1);
-		setLiked(!liked);
+	async function handleLike() {
+		if (isLiking) return;
+
+		setIsLiking(true);
+
+		try {
+			let userId: string | undefined;
+			const stored = localStorage.getItem("user");
+			if (stored) {
+				try {
+					const u = JSON.parse(stored);
+					userId = u.id ? String(u.id) : u.email;
+				} catch {}
+			}
+
+			const data = await toggleLikeServerFn({
+				data: {
+					postId: post.id,
+					userId,
+				},
+			});
+
+			setLikes(data.likes);
+			setLiked(data.isLiked);
+		} finally {
+			setIsLiking(false);
+		}
 	}
 
 	return (
@@ -52,6 +80,7 @@ function PostCard({ post, currentUser }: PostCardProps) {
 						variant="outline"
 						size="sm"
 						onClick={handleLike}
+						disabled={isLiking}
 						aria-pressed={liked}
 					>
 						{liked ? "❤️ Liked" : "❤️ Like"}

@@ -11,8 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreatePostRouteImport } from './routes/create-post'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ApiPostRouteImport } from './routes/api/post'
 import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,14 +25,14 @@ const CreatePostRoute = CreatePostRouteImport.update({
   path: '/create-post',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPostRoute = ApiPostRouteImport.update({
-  id: '/api/post',
-  path: '/api/post',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PostsPostIdRoute = PostsPostIdRouteImport.update({
@@ -44,44 +44,44 @@ const PostsPostIdRoute = PostsPostIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
-  '/api/post': typeof ApiPostRoute
   '/posts/$postId': typeof PostsPostIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
-  '/api/post': typeof ApiPostRoute
   '/posts/$postId': typeof PostsPostIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
+  '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
-  '/api/post': typeof ApiPostRoute
   '/posts/$postId': typeof PostsPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create-post' | '/settings' | '/api/post' | '/posts/$postId'
+  fullPaths: '/' | '/create-post' | '/login' | '/settings' | '/posts/$postId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create-post' | '/settings' | '/api/post' | '/posts/$postId'
+  to: '/' | '/create-post' | '/login' | '/settings' | '/posts/$postId'
   id:
     | '__root__'
     | '/'
     | '/create-post'
+    | '/login'
     | '/settings'
-    | '/api/post'
     | '/posts/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreatePostRoute: typeof CreatePostRoute
+  LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
-  ApiPostRoute: typeof ApiPostRoute
   PostsPostIdRoute: typeof PostsPostIdRoute
 }
 
@@ -101,18 +101,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreatePostRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/post': {
-      id: '/api/post'
-      path: '/api/post'
-      fullPath: '/api/post'
-      preLoaderRoute: typeof ApiPostRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/posts/$postId': {
@@ -128,8 +128,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreatePostRoute: CreatePostRoute,
+  LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
-  ApiPostRoute: ApiPostRoute,
   PostsPostIdRoute: PostsPostIdRoute,
 }
 export const routeTree = rootRouteImport

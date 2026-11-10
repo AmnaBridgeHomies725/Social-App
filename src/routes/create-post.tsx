@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createPost } from "../data/postService";
+import { createPostServerFn } from "../server/post.function";
 
 export const Route = createFileRoute("/create-post")({
 	component: CreatePost,
@@ -16,34 +16,42 @@ function CreatePost() {
 	const [text, setText] = useState("");
 	const [imageUrl, setImageUrl] = useState("");
 	const [error, setError] = useState("");
+	const [isLoading, setIsLoading] = useState(false);
 
-	function handleSubmit(event: React.FormEvent) {
+	async function handleSubmit(event: React.FormEvent) {
 		event.preventDefault();
 
-		const trimmedText = text.trim();
-		const trimmedImageUrl = imageUrl.trim();
+		setError("");
+		setIsLoading(true);
 
-		if (!trimmedText && !trimmedImageUrl) {
-			setError("Please enter text or an image URL.");
-			return;
+		try {
+			let author = "Areena";
+			const stored = localStorage.getItem("user");
+			if (stored) {
+				try {
+					const u = JSON.parse(stored);
+					if (u.name) author = u.name;
+				} catch {}
+			}
+
+			await createPostServerFn({
+				data: {
+					text,
+					imageUrl,
+					author,
+				},
+			});
+
+			navigate({ to: "/" });
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: "Something went wrong. Please try again.",
+			);
+		} finally {
+			setIsLoading(false);
 		}
-
-		if (trimmedText.length > 500) {
-			setError("Post text cannot exceed 500 characters.");
-			return;
-		}
-
-		if (
-			trimmedImageUrl &&
-			!trimmedImageUrl.startsWith("http://") &&
-			!trimmedImageUrl.startsWith("https://")
-		) {
-			setError("Please enter a valid HTTP or HTTPS image URL.");
-			return;
-		}
-
-		createPost(trimmedText, trimmedImageUrl);
-		navigate({ to: "/" });
 	}
 
 	return (
@@ -94,7 +102,9 @@ function CreatePost() {
 
 						{error && <p className="text-sm text-destructive">{error}</p>}
 
-						<Button type="submit">Create Post</Button>
+						<Button type="submit" disabled={isLoading}>
+							{isLoading ? "Creating..." : "Create Post"}
+						</Button>
 					</form>
 				</CardContent>
 			</Card>
