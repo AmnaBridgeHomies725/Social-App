@@ -1,8 +1,11 @@
-import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 
+const dbPath = resolve(process.cwd(), "database", "social-app.db");
+mkdirSync(dirname(dbPath), { recursive: true });
 
-const db = new Database(resolve("database/social-app.db"));
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

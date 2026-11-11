@@ -3,6 +3,7 @@ import type { Post } from "../types/post";
 import type { Comment, FeedRow, PostRow } from "../types/db";
 import db from "./database/db";
 
+const PRACTICE_USER_ID = "practice-user-1";
 type PostWithComments = Omit<Post, "comments"> & {
 	comments: Comment[];
 };
@@ -29,12 +30,13 @@ export const getPostsServerFn = createServerFn({
 					p.image_url,
 					p.created_at,
 					(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS likes,
-					(SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
+					(SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) AS liked_by_me
 				FROM posts p
 				ORDER BY p.created_at DESC, p.id DESC
 				LIMIT ? OFFSET ?`,
 			)
-			.all(data.pageSize, data.offset) as FeedRow[];
+			.all(PRACTICE_USER_ID, data.pageSize, data.offset) as FeedRow[];
 
 		return rows.map((row) => ({
 			id: row.id,
@@ -44,7 +46,7 @@ export const getPostsServerFn = createServerFn({
 			timestamp: row.created_at,
 			likes: row.likes,
 			comments: new Array(row.comment_count).fill(""),
-			isLiked: false,
+			isLiked: row.liked_by_me === 1,
 		}));
 	});
 
@@ -114,7 +116,7 @@ export const toggleLikeServerFn = createServerFn({
 			throw new Error("Post not found");
 		}
 
-		const userId = data.userId || "practice-user-1";
+		const userId = PRACTICE_USER_ID;
 
 		const existingLike = db
 			.prepare("SELECT id FROM likes WHERE post_id = ? AND user_id = ?")
