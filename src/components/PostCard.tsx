@@ -13,9 +13,7 @@ interface PostCardProps {
 
 function PostCard({ post, currentUser }: PostCardProps) {
 	const [likes, setLikes] = useState(post.likes);
-	const [liked, setLiked] = useState(
-		(post as unknown as { isLiked?: boolean }).isLiked || false,
-	);
+const [liked, setLiked] = useState(post.isLiked ?? false);
 	const [isLiking, setIsLiking] = useState(false);
 
 	async function handleLike() {
