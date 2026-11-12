@@ -14,7 +14,7 @@ export type FeedRow = {
 	created_at: string;
 	likes: number;
 	comment_count: number;
-		liked_by_me: number;
+	liked_by_me: number;
 };
 
 export type PostRow = {

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { Post } from "../types/post";
 import type { Comment, FeedRow, PostRow } from "../types/db";
+import type { Post } from "../types/post";
 import db from "./database/db";
 import { getSessionServerFn } from "./session.function";
 
@@ -9,33 +9,33 @@ type PostWithComments = Omit<Post, "comments"> & {
 };
 
 function findPost(postId: number) {
-	return db
-		.prepare("SELECT id FROM posts WHERE id = ?")
-		.get(postId) as { id: number } | undefined;
+	return db.prepare("SELECT id FROM posts WHERE id = ?").get(postId) as
+		| { id: number }
+		| undefined;
 }
 
 export const getPostsServerFn = createServerFn({
 	method: "GET",
 })
-.validator(
-  (data: { pageSize?: number; cursor?: string; search?: string }) => ({
-    pageSize: Math.min(Math.max(data.pageSize ?? 2, 1), 50),
-    cursor: data.cursor,
-    search: data.search,
-  }),
-)
-		.handler(async ({ data }) => {
+	.validator(
+		(data: { pageSize?: number; cursor?: string; search?: string }) => ({
+			pageSize: Math.min(Math.max(data.pageSize ?? 2, 1), 50),
+			cursor: data.cursor,
+			search: data.search,
+		}),
+	)
+	.handler(async ({ data }) => {
 		const session = await getSessionServerFn();
-		 const search = `%${data.search?.trim() ?? ""}%`;
-		 const decoded = data.cursor
-  ? (JSON.parse(Buffer.from(data.cursor, "base64url").toString("utf8")) as {
-      createdAt: string;
-      id: number;
-    })
-  : null;
-const rows = db
-  .prepare(
-    `SELECT
+		const search = `%${data.search?.trim() ?? ""}%`;
+		const decoded = data.cursor
+			? (JSON.parse(Buffer.from(data.cursor, "base64url").toString("utf8")) as {
+					createdAt: string;
+					id: number;
+				})
+			: null;
+		const rows = db
+			.prepare(
+				`SELECT
       p.id,
       p.author,
       p.text,
@@ -49,42 +49,42 @@ const rows = db
       AND (? IS NULL OR p.created_at < ? OR (p.created_at = ? AND p.id < ?))
     ORDER BY p.created_at DESC, p.id DESC
     LIMIT ?`,
-  )
-  .all(
-    session?.id ?? "",
-    search,
-    search,
-    decoded ? 1 : null,
-    decoded?.createdAt ?? null,
-    decoded?.createdAt ?? null,
-    decoded?.id ?? null,
-    data.pageSize + 1,
-  ) as FeedRow[];
+			)
+			.all(
+				session?.id ?? "",
+				search,
+				search,
+				decoded ? 1 : null,
+				decoded?.createdAt ?? null,
+				decoded?.createdAt ?? null,
+				decoded?.id ?? null,
+				data.pageSize + 1,
+			) as FeedRow[];
 
-	  const hasMore = rows.length > data.pageSize;
-const pageRows = hasMore ? rows.slice(0, data.pageSize) : rows;
-const last = pageRows[pageRows.length - 1];
+		const hasMore = rows.length > data.pageSize;
+		const pageRows = hasMore ? rows.slice(0, data.pageSize) : rows;
+		const last = pageRows[pageRows.length - 1];
 
-return {
-  posts: pageRows.map((row) => ({
-    id: row.id,
-    author: row.author,
-    text: row.text,
-    imageUrl: row.image_url ?? undefined,
-    timestamp: row.created_at,
-    likes: row.likes,
-    comments: new Array(row.comment_count).fill(""),
-    isLiked: row.liked_by_me === 1,
-  })),
-  hasMore,
-  nextCursor:
-    hasMore && last
-      ? Buffer.from(
-          JSON.stringify({ createdAt: last.created_at, id: last.id }),
-        ).toString("base64url")
-      : null,
-	   };
-});
+		return {
+			posts: pageRows.map((row) => ({
+				id: row.id,
+				author: row.author,
+				text: row.text,
+				imageUrl: row.image_url ?? undefined,
+				timestamp: row.created_at,
+				likes: row.likes,
+				comments: new Array(row.comment_count).fill(""),
+				isLiked: row.liked_by_me === 1,
+			})),
+			hasMore,
+			nextCursor:
+				hasMore && last
+					? Buffer.from(
+							JSON.stringify({ createdAt: last.created_at, id: last.id }),
+						).toString("base64url")
+					: null,
+		};
+	});
 
 export const createPostServerFn = createServerFn({
 	method: "POST",
@@ -111,18 +111,18 @@ export const createPostServerFn = createServerFn({
 
 		return {
 			text: trimmedText,
-			imageUrl: trimmedImageUrl
+			imageUrl: trimmedImageUrl,
 		};
 	})
-.handler(async ({ data }) => {
-  const session = await getSessionServerFn();
-  if (!session) {
-    throw new Error("Unauthorized");
-  }
+	.handler(async ({ data }) => {
+		const session = await getSessionServerFn();
+		if (!session) {
+			throw new Error("Unauthorized");
+		}
 
-  const createdAt = new Date().toISOString();
+		const createdAt = new Date().toISOString();
 
-  const result = db
+		const result = db
 			.prepare(
 				"INSERT INTO posts (author, text, image_url, created_at) VALUES (?, ?, ?, ?)",
 			)
@@ -143,23 +143,22 @@ export const toggleLikeServerFn = createServerFn({
 	method: "POST",
 })
 	.validator((data: { postId: number }) => {
-  if (!Number.isInteger(data.postId)) {
-    throw new Error("Invalid post ID");
-  }
+		if (!Number.isInteger(data.postId)) {
+			throw new Error("Invalid post ID");
+		}
 
-  return data;
-})
-.handler(async ({ data }) => {
-  const session = await getSessionServerFn();
-  if (!session) {
-	
-    throw new Error("Unauthorized");
-  }
-  const post = findPost(data.postId);
+		return data;
+	})
+	.handler(async ({ data }) => {
+		const session = await getSessionServerFn();
+		if (!session) {
+			throw new Error("Unauthorized");
+		}
+		const post = findPost(data.postId);
 
-if (!post) {
-  throw new Error("Post not found");
-}
+		if (!post) {
+			throw new Error("Post not found");
+		}
 
 		const userId = session.id;
 
@@ -214,10 +213,10 @@ export const createCommentServerFn = createServerFn({
 		};
 	})
 	.handler(async ({ data }) => {
-		  const session = await getSessionServerFn();
-  if (!session) {
-    throw new Error("Unauthorized");
-  }
+		const session = await getSessionServerFn();
+		if (!session) {
+			throw new Error("Unauthorized");
+		}
 		const post = findPost(data.postId);
 
 		if (!post) {
@@ -228,7 +227,7 @@ export const createCommentServerFn = createServerFn({
 			.prepare(
 				"INSERT INTO comments (post_id, user_id, comment) VALUES (?, ?, ?)",
 			)
-			.run(data.postId, session.id, data.comment);
+			.run(data.postId, session.name, data.comment);
 
 		const newComment = db
 			.prepare(

@@ -31,16 +31,16 @@ function LoginPage() {
 
 		try {
 			const { error } = await authClient.signIn.email({
-  email,
-  password,
-});
+				email,
+				password,
+			});
 
-if (error) {
-  setError(error.message ?? "Invalid email or password");
-  return;
-}
+			if (error) {
+				setError(error.message ?? "Invalid email or password");
+				return;
+			}
 
-navigate({ to: "/" });
+			navigate({ to: "/" });
 		} catch (err) {
 			setError(
 				err instanceof Error ? err.message : "Invalid email or password",
@@ -117,7 +117,7 @@ navigate({ to: "/" });
 							{isLoading ? "Logging in..." : "Login"}
 						</Button>
 						<p className="text-center text-sm text-[var(--sea-ink-soft)]">
-	Don't have an account?{" "}
+							Don't have an account?{" "}
 							<Link to="/register" className="font-semibold underline">
 								Register
 							</Link>

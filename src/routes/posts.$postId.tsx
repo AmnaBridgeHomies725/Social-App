@@ -77,20 +77,10 @@ function PostDetail({ post }: PostDetailProps) {
 		setError("");
 
 		try {
-			let userName = "User";
-			const stored = localStorage.getItem("user");
-			if (stored) {
-				try {
-					const u = JSON.parse(stored);
-					if (u.name) userName = u.name;
-				} catch {}
-			}
-
 			await createCommentServerFn({
 				data: {
 					postId: currentPost.id,
 					comment: commentText,
-					userId: userName,
 				},
 			});
 

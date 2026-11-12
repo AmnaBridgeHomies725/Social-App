@@ -63,7 +63,8 @@ function RegisterPage() {
 						Create Account
 					</CardTitle>
 					<CardDescription className="text-[var(--sea-ink-soft)]">
-						Create your account to start sharing your thoughts and connecting with others!
+						Create your account to start sharing your thoughts and connecting
+						with others!
 					</CardDescription>
 				</CardHeader>
 
@@ -140,7 +141,7 @@ function RegisterPage() {
 						<p className="text-center text-sm text-[var(--sea-ink-soft)]">
 							Already have an account?{" "}
 							<Link to="/login" className="font-semibold underline">
-								Login 
+								Login
 							</Link>
 						</p>
 					</form>

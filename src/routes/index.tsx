@@ -5,54 +5,50 @@ import PostCard from "../components/PostCard";
 import { getPostsServerFn } from "../server/post.function";
 import { getSessionServerFn } from "../server/session.function";
 
-
-
 export const Route = createFileRoute("/")({
 	loader: async () => {
-	const session = await getSessionServerFn();
-const feed = await getPostsServerFn({
-	data: {},
-});
+		const session = await getSessionServerFn();
+		const feed = await getPostsServerFn({
+			data: {},
+		});
 
-	return { feed, user: session };
-},
+		return { feed, user: session };
+	},
 	component: SocialFeed,
 });
 
 function SocialFeed() {
 	const initial = Route.useLoaderData();
 
-const currentUser = initial.user?.name ?? "";
+	const currentUser = initial.user?.name ?? "";
 
-const [feedPosts, setFeedPosts] = useState(initial.feed.posts);
-const [cursor, setCursor] = useState<string | null>(initial.feed.nextCursor);
-const hasMore = cursor !== null;
-const [isLoading, setIsLoading] = useState(false);
-const [error, setError] = useState("");
+	const [feedPosts, setFeedPosts] = useState(initial.feed.posts);
+	const [cursor, setCursor] = useState<string | null>(initial.feed.nextCursor);
+	const hasMore = cursor !== null;
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState("");
 
+	const loadMorePosts = async () => {
+		if (!cursor) return;
 
-const loadMorePosts = async () => {
-	if (!cursor) return;
+		try {
+			setIsLoading(true);
+			setError("");
 
-	try {
-		setIsLoading(true);
-		setError("");
+			const next = await getPostsServerFn({
+				data: {
+					cursor,
+				},
+			});
 
-		const next = await getPostsServerFn({
-			data: {
-				cursor,
-			},
-		});
-
-		setFeedPosts((currentPosts) => [...currentPosts, ...next.posts]);
-		setCursor(next.nextCursor);
-	} catch {
-		setError("Posts load nahi ho sakin. Please try again.");
-	} finally {
-		setIsLoading(false);
-	}
-};
-	
+			setFeedPosts((currentPosts) => [...currentPosts, ...next.posts]);
+			setCursor(next.nextCursor);
+		} catch {
+			setError("Posts load nahi ho sakin. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	return (
 		<div className="social-feed-shell">

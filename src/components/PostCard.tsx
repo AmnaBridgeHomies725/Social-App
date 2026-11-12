@@ -13,7 +13,7 @@ interface PostCardProps {
 
 function PostCard({ post, currentUser }: PostCardProps) {
 	const [likes, setLikes] = useState(post.likes);
-const [liked, setLiked] = useState(post.isLiked ?? false);
+	const [liked, setLiked] = useState(post.isLiked ?? false);
 	const [isLiking, setIsLiking] = useState(false);
 
 	async function handleLike() {
@@ -22,18 +22,9 @@ const [liked, setLiked] = useState(post.isLiked ?? false);
 		setIsLiking(true);
 
 		try {
-			let userId: string | undefined;
-			const stored = localStorage.getItem("user");
-			if (stored) {
-				try {
-					const u = JSON.parse(stored);
-					userId = u.id ? String(u.id) : u.email;
-				} catch {}
-			}
-
 			const data = await toggleLikeServerFn({
 				data: {
-					postId: post.id
+					postId: post.id,
 				},
 			});
 

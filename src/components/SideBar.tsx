@@ -9,10 +9,10 @@ function SideBar() {
 
 	const activeClass = `${linkClass} bg-accent text-accent-foreground`;
 
-const handleLogout = async () => {
-  await authClient.signOut();
-  navigate({ to: "/login" });
-};
+	const handleLogout = async () => {
+		await authClient.signOut();
+		navigate({ to: "/login" });
+	};
 
 	return (
 		<aside className="app-sidebar" aria-label="Main navigation">
