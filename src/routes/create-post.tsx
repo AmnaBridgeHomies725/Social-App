@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/create-post")({
 
 function CreatePost() {
 	const navigate = useNavigate();
+	const router = useRouter();
 
 	const [text, setText] = useState("");
 	const [imageUrl, setImageUrl] = useState("");
@@ -41,7 +42,7 @@ function CreatePost() {
 					author,
 				},
 			});
-
+            await router.invalidate();
 			navigate({ to: "/" });
 		} catch (err) {
 			setError(

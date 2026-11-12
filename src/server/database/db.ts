@@ -1,7 +1,11 @@
-import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 
-const db = new Database(resolve("database/social-app.db"));
+const dbPath = resolve(process.cwd(), "database", "social-app.db");
+mkdirSync(dirname(dbPath), { recursive: true });
+
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -11,6 +15,13 @@ db.exec(`
     password_hash TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
+CREATE TABLE IF NOT EXISTS posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  author TEXT NOT NULL,
+  text TEXT NOT NULL DEFAULT '',
+  image_url TEXT,
+  created_at TEXT NOT NULL
+);
 
   CREATE TABLE IF NOT EXISTS likes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
