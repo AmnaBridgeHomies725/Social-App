@@ -32,7 +32,7 @@ export const posts: Post[] = [
 		comments: ["So colorful!", "Nature is lovely", "Great work"],
 	},
 	{
-		id: 9,
+		id: 4,
 		author: "Fatima",
 		text: "Fresh colorful roses blooming in full glory today!",
 		imageUrl:
@@ -42,7 +42,7 @@ export const posts: Post[] = [
 		comments: ["So colorful!", "Nature is lovely", "Great work"],
 	},
 	{
-		id: 8,
+		id: 5,
 		author: "Areena",
 		text: "Fresh colorful roses blooming in full glory today!",
 		imageUrl:

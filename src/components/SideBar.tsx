@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { authClient } from "../lib/auth-client";
 
 function SideBar() {
 	const navigate = useNavigate();
@@ -8,10 +9,10 @@ function SideBar() {
 
 	const activeClass = `${linkClass} bg-accent text-accent-foreground`;
 
-	const handleLogout = () => {
-		localStorage.removeItem("user");
-		navigate({ to: "/login" });
-	};
+const handleLogout = async () => {
+  await authClient.signOut();
+  navigate({ to: "/login" });
+};
 
 	return (
 		<aside className="app-sidebar" aria-label="Main navigation">

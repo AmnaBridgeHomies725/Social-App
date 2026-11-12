@@ -2,14 +2,15 @@ import {
 	createRootRoute,
 	HeadContent,
 	Link,
+	redirect,
 	Scripts,
-	useNavigate,
 	useRouterState,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
 import Sidebar from "../components/SideBar";
 import appCss from "../styles.css?url";
+import { getSessionServerFn } from "#/server/session.function";
 
+const publicPaths = ["/login", "/register"];
 const THEME_INIT_SCRIPT = `
 (function() {
   try {
@@ -44,6 +45,15 @@ export const Route = createRootRoute({
 		links: [{ rel: "stylesheet", href: appCss }],
 	}),
 	notFoundComponent: NotFound,
+beforeLoad: async ({ location }) => {
+	const session = await getSessionServerFn();
+
+if (!session && !publicPaths.includes(location.pathname)) {
+	throw redirect({ to: "/login" });
+}
+
+	return { user: session };
+},
 	shellComponent: RootDocument,
 });
 
@@ -66,20 +76,11 @@ function NotFound() {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
 	const routerState = useRouterState();
-	const navigate = useNavigate();
-	const isLoginPage = routerState.location.pathname === "/login";
+const isPublicPage = publicPaths.includes(routerState.location.pathname);
 
-	useEffect(() => {
-		const user = localStorage.getItem("user");
-
-		if (!user && !isLoginPage) {
-			navigate({ to: "/login" });
-		}
-	}, [isLoginPage, navigate]);
-
-	if (isLoginPage) {
-		return <main className="w-full">{children}</main>;
-	}
+if (isPublicPage) {
+	return <main className="w-full">{children}</main>;
+}
 
 	return (
 		<div className="app-shell">

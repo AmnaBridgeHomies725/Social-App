@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreatePostRouteImport } from './routes/create-post'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +32,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -40,49 +47,78 @@ const PostsPostIdRoute = PostsPostIdRouteImport.update({
   path: '/posts/$postId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create-post' | '/login' | '/settings' | '/posts/$postId'
+  fullPaths:
+    | '/'
+    | '/create-post'
+    | '/login'
+    | '/register'
+    | '/settings'
+    | '/posts/$postId'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create-post' | '/login' | '/settings' | '/posts/$postId'
+  to:
+    | '/'
+    | '/create-post'
+    | '/login'
+    | '/register'
+    | '/settings'
+    | '/posts/$postId'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/create-post'
     | '/login'
+    | '/register'
     | '/settings'
     | '/posts/$postId'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreatePostRoute: typeof CreatePostRoute
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   PostsPostIdRoute: typeof PostsPostIdRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -108,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -122,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PostsPostIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -129,8 +179,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreatePostRoute: CreatePostRoute,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   PostsPostIdRoute: PostsPostIdRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

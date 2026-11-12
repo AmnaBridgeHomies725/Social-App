@@ -25,24 +25,15 @@ function CreatePost() {
 		setError("");
 		setIsLoading(true);
 
-		try {
-			let author = "Areena";
-			const stored = localStorage.getItem("user");
-			if (stored) {
 				try {
-					const u = JSON.parse(stored);
-					if (u.name) author = u.name;
-				} catch {}
-			}
-
 			await createPostServerFn({
 				data: {
 					text,
 					imageUrl,
-					author,
 				},
 			});
-            await router.invalidate();
+
+			await router.invalidate();
 			navigate({ to: "/" });
 		} catch (err) {
 			setError(

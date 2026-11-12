@@ -33,8 +33,7 @@ const [liked, setLiked] = useState(post.isLiked ?? false);
 
 			const data = await toggleLikeServerFn({
 				data: {
-					postId: post.id,
-					userId,
+					postId: post.id
 				},
 			});
 

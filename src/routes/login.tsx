@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loginUser } from "../server/auth.function";
+import { authClient } from "../lib/auth-client";
 
 export const Route = createFileRoute("/login")({
 	component: LoginPage,
@@ -30,15 +30,17 @@ function LoginPage() {
 		setIsLoading(true);
 
 		try {
-			const data = await loginUser({
-				data: {
-					email,
-					password,
-				},
-			});
+			const { error } = await authClient.signIn.email({
+  email,
+  password,
+});
 
-			localStorage.setItem("user", JSON.stringify(data.user));
-			navigate({ to: "/" });
+if (error) {
+  setError(error.message ?? "Invalid email or password");
+  return;
+}
+
+navigate({ to: "/" });
 		} catch (err) {
 			setError(
 				err instanceof Error ? err.message : "Invalid email or password",
@@ -114,20 +116,12 @@ function LoginPage() {
 						>
 							{isLoading ? "Logging in..." : "Login"}
 						</Button>
-
-						<div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 text-xs text-[var(--sea-ink-soft)] space-y-1 mt-4">
-							<p className="font-bold text-[var(--sea-ink)]">Demo Account:</p>
-							<p>
-								User:{" "}
-								<span className="font-mono text-[var(--sea-ink)]">
-									user1@example.com
-								</span>{" "}
-								/{" "}
-								<span className="font-mono text-[var(--sea-ink)]">
-									User@123
-								</span>
-							</p>
-						</div>
+						<p className="text-center text-sm text-[var(--sea-ink-soft)]">
+	Don't have an account?{" "}
+							<Link to="/register" className="font-semibold underline">
+								Register
+							</Link>
+						</p>
 					</form>
 				</CardContent>
 			</Card>

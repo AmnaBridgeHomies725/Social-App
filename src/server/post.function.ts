@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import type { Post } from "../types/post";
 import type { Comment, FeedRow, PostRow } from "../types/db";
 import db from "./database/db";
+import { getSessionServerFn } from "./session.function";
 
-const PRACTICE_USER_ID = "practice-user-1";
 type PostWithComments = Omit<Post, "comments"> & {
 	comments: Comment[];
 };
@@ -21,6 +21,7 @@ export const getPostsServerFn = createServerFn({
 		(data: { pageSize: number; offset: number; userId?: string }) => data,
 	)
 	.handler(async ({ data }) => {
+		const session = await getSessionServerFn();
 		const rows = db
 			.prepare(
 				`SELECT
@@ -36,7 +37,7 @@ export const getPostsServerFn = createServerFn({
 				ORDER BY p.created_at DESC, p.id DESC
 				LIMIT ? OFFSET ?`,
 			)
-			.all(PRACTICE_USER_ID, data.pageSize, data.offset) as FeedRow[];
+			.all(session?.id ?? "", data.pageSize, data.offset) as FeedRow[];
 
 		return rows.map((row) => ({
 			id: row.id,
@@ -53,7 +54,7 @@ export const getPostsServerFn = createServerFn({
 export const createPostServerFn = createServerFn({
 	method: "POST",
 })
-	.validator((data: { text: string; imageUrl: string; author?: string }) => {
+	.validator((data: { text: string; imageUrl: string }) => {
 		const trimmedText = data.text.trim();
 		const trimmedImageUrl = data.imageUrl.trim();
 
@@ -75,22 +76,26 @@ export const createPostServerFn = createServerFn({
 
 		return {
 			text: trimmedText,
-			imageUrl: trimmedImageUrl,
-			author: data.author?.trim() || "Areena",
+			imageUrl: trimmedImageUrl
 		};
 	})
-	.handler(async ({ data }) => {
-		const createdAt = new Date().toISOString();
+.handler(async ({ data }) => {
+  const session = await getSessionServerFn();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
 
-		const result = db
+  const createdAt = new Date().toISOString();
+
+  const result = db
 			.prepare(
 				"INSERT INTO posts (author, text, image_url, created_at) VALUES (?, ?, ?, ?)",
 			)
-			.run(data.author, data.text, data.imageUrl || null, createdAt);
+			.run(session.name, data.text, data.imageUrl || null, createdAt);
 
 		return {
 			id: Number(result.lastInsertRowid),
-			author: data.author,
+			author: session.name,
 			text: data.text,
 			imageUrl: data.imageUrl,
 			timestamp: createdAt,
@@ -102,21 +107,26 @@ export const createPostServerFn = createServerFn({
 export const toggleLikeServerFn = createServerFn({
 	method: "POST",
 })
-	.validator((data: { postId: number; userId?: string }) => {
-		if (!Number.isInteger(data.postId)) {
-			throw new Error("Invalid post ID");
-		}
+	.validator((data: { postId: number }) => {
+  if (!Number.isInteger(data.postId)) {
+    throw new Error("Invalid post ID");
+  }
 
-		return data;
-	})
-	.handler(async ({ data }) => {
-		const post = findPost(data.postId);
+  return data;
+})
+.handler(async ({ data }) => {
+  const session = await getSessionServerFn();
+  if (!session) {
+	
+    throw new Error("Unauthorized");
+  }
+  const post = findPost(data.postId);
 
-		if (!post) {
-			throw new Error("Post not found");
-		}
+if (!post) {
+  throw new Error("Post not found");
+}
 
-		const userId = PRACTICE_USER_ID;
+		const userId = session.id;
 
 		const existingLike = db
 			.prepare("SELECT id FROM likes WHERE post_id = ? AND user_id = ?")
@@ -148,7 +158,7 @@ export const toggleLikeServerFn = createServerFn({
 export const createCommentServerFn = createServerFn({
 	method: "POST",
 })
-	.validator((data: { postId: number; comment: string; userId?: string }) => {
+	.validator((data: { postId: number; comment: string }) => {
 		const trimmedComment = data.comment.trim();
 
 		if (!Number.isInteger(data.postId)) {
@@ -166,10 +176,13 @@ export const createCommentServerFn = createServerFn({
 		return {
 			postId: data.postId,
 			comment: trimmedComment,
-			userId: data.userId?.trim() || "User",
 		};
 	})
 	.handler(async ({ data }) => {
+		  const session = await getSessionServerFn();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
 		const post = findPost(data.postId);
 
 		if (!post) {
@@ -180,7 +193,7 @@ export const createCommentServerFn = createServerFn({
 			.prepare(
 				"INSERT INTO comments (post_id, user_id, comment) VALUES (?, ?, ?)",
 			)
-			.run(data.postId, data.userId, data.comment);
+			.run(data.postId, session.id, data.comment);
 
 		const newComment = db
 			.prepare(
