@@ -17,39 +17,74 @@ function findPost(postId: number) {
 export const getPostsServerFn = createServerFn({
 	method: "GET",
 })
-	.validator(
-		(data: { pageSize: number; offset: number; userId?: string }) => data,
-	)
-	.handler(async ({ data }) => {
+.validator(
+  (data: { pageSize?: number; cursor?: string; search?: string }) => ({
+    pageSize: Math.min(Math.max(data.pageSize ?? 2, 1), 50),
+    cursor: data.cursor,
+    search: data.search,
+  }),
+)
+		.handler(async ({ data }) => {
 		const session = await getSessionServerFn();
-		const rows = db
-			.prepare(
-				`SELECT
-					p.id,
-					p.author,
-					p.text,
-					p.image_url,
-					p.created_at,
-					(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS likes,
-					(SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
-(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) AS liked_by_me
-				FROM posts p
-				ORDER BY p.created_at DESC, p.id DESC
-				LIMIT ? OFFSET ?`,
-			)
-			.all(session?.id ?? "", data.pageSize, data.offset) as FeedRow[];
+		 const search = `%${data.search?.trim() ?? ""}%`;
+		 const decoded = data.cursor
+  ? (JSON.parse(Buffer.from(data.cursor, "base64url").toString("utf8")) as {
+      createdAt: string;
+      id: number;
+    })
+  : null;
+const rows = db
+  .prepare(
+    `SELECT
+      p.id,
+      p.author,
+      p.text,
+      p.image_url,
+      p.created_at,
+      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS likes,
+      (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) AS liked_by_me
+    FROM posts p
+    WHERE (p.text LIKE ? OR p.author LIKE ?)
+      AND (? IS NULL OR p.created_at < ? OR (p.created_at = ? AND p.id < ?))
+    ORDER BY p.created_at DESC, p.id DESC
+    LIMIT ?`,
+  )
+  .all(
+    session?.id ?? "",
+    search,
+    search,
+    decoded ? 1 : null,
+    decoded?.createdAt ?? null,
+    decoded?.createdAt ?? null,
+    decoded?.id ?? null,
+    data.pageSize + 1,
+  ) as FeedRow[];
 
-		return rows.map((row) => ({
-			id: row.id,
-			author: row.author,
-			text: row.text,
-			imageUrl: row.image_url ?? undefined,
-			timestamp: row.created_at,
-			likes: row.likes,
-			comments: new Array(row.comment_count).fill(""),
-			isLiked: row.liked_by_me === 1,
-		}));
-	});
+	  const hasMore = rows.length > data.pageSize;
+const pageRows = hasMore ? rows.slice(0, data.pageSize) : rows;
+const last = pageRows[pageRows.length - 1];
+
+return {
+  posts: pageRows.map((row) => ({
+    id: row.id,
+    author: row.author,
+    text: row.text,
+    imageUrl: row.image_url ?? undefined,
+    timestamp: row.created_at,
+    likes: row.likes,
+    comments: new Array(row.comment_count).fill(""),
+    isLiked: row.liked_by_me === 1,
+  })),
+  hasMore,
+  nextCursor:
+    hasMore && last
+      ? Buffer.from(
+          JSON.stringify({ createdAt: last.created_at, id: last.id }),
+        ).toString("base64url")
+      : null,
+	   };
+});
 
 export const createPostServerFn = createServerFn({
 	method: "POST",

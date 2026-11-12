@@ -1,68 +1,58 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import PostCard from "../components/PostCard";
 import { getPostsServerFn } from "../server/post.function";
+import { getSessionServerFn } from "../server/session.function";
 
-const PAGE_SIZE = 2;
+
 
 export const Route = createFileRoute("/")({
 	loader: async () => {
-		return await getPostsServerFn({
-			data: {
-				pageSize: PAGE_SIZE,
-				offset: 0,
-			},
-		});
-	},
+	const session = await getSessionServerFn();
+const feed = await getPostsServerFn({
+	data: {},
+});
+
+	return { feed, user: session };
+},
 	component: SocialFeed,
 });
 
 function SocialFeed() {
-	const initialPosts = Route.useLoaderData();
+	const initial = Route.useLoaderData();
 
-	const [currentUser, setCurrentUser] = useState("Areena");
-	const [feedPosts, setFeedPosts] = useState(initialPosts);
-	const [offset, setOffset] = useState(initialPosts.length);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState("");
-	const [hasMore, setHasMore] = useState(initialPosts.length === PAGE_SIZE);
+const currentUser = initial.user?.name ?? "";
 
-	useEffect(() => {
-		const stored = localStorage.getItem("user");
-		if (stored) {
-			try {
-				const u = JSON.parse(stored);
-				if (u.name) setCurrentUser(u.name);
-			} catch {}
-		}
-	}, []);
+const [feedPosts, setFeedPosts] = useState(initial.feed.posts);
+const [cursor, setCursor] = useState<string | null>(initial.feed.nextCursor);
+const hasMore = cursor !== null;
+const [isLoading, setIsLoading] = useState(false);
+const [error, setError] = useState("");
 
-	const loadMorePosts = async () => {
-		try {
-			setIsLoading(true);
-			setError("");
 
-			const nextPosts = await getPostsServerFn({
-				data: {
-					pageSize: PAGE_SIZE,
-					offset: offset,
-				},
-			});
+const loadMorePosts = async () => {
+	if (!cursor) return;
 
-			setFeedPosts((currentPosts) => [...currentPosts, ...nextPosts]);
+	try {
+		setIsLoading(true);
+		setError("");
 
-			setOffset((currentOffset) => currentOffset + nextPosts.length);
+		const next = await getPostsServerFn({
+			data: {
+				cursor,
+			},
+		});
 
-			if (nextPosts.length < PAGE_SIZE) {
-				setHasMore(false);
-			}
-		} catch {
-			setError("Posts load nahi ho sakin. Please try again.");
-		} finally {
-			setIsLoading(false);
-		}
-	};
+		setFeedPosts((currentPosts) => [...currentPosts, ...next.posts]);
+		setCursor(next.nextCursor);
+	} catch {
+		setError("Posts load nahi ho sakin. Please try again.");
+	} finally {
+		setIsLoading(false);
+	}
+};
+	
 
 	return (
 		<div className="social-feed-shell">
