@@ -25,10 +25,14 @@ type PostWithComments = Omit<Post, "comments"> & {
 
 export const Route = createFileRoute("/posts/$postId")({
 	loader: async ({ params }) => {
+		const postId = Number(params.postId);
+
+		if (!Number.isInteger(postId)) {
+			return null;
+		}
+
 		return await getPostByIdServerFn({
-			data: {
-				postId: Number(params.postId),
-			},
+			data: { postId },
 		});
 	},
 	component: PostDetailRoute,
