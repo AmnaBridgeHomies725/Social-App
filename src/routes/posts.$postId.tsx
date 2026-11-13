@@ -116,7 +116,7 @@ function PostDetail({ post }: PostDetailProps) {
 						<img
 							src={post.imageUrl}
 							alt="Post"
-							className="w-full rounded-lg object-cover"
+							className="aspect-[16/10] w-full rounded-lg object-cover"
 						/>
 					)}
 

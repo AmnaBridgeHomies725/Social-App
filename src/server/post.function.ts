@@ -90,8 +90,9 @@ export const createPostServerFn = createServerFn({
 	method: "POST",
 })
 	.validator((data: { text: string; imageUrl: string }) => {
-		const trimmedText = data.text.trim();
-		const trimmedImageUrl = data.imageUrl.trim();
+		const trimmedText = typeof data.text === "string" ? data.text.trim() : "";
+		const trimmedImageUrl =
+			typeof data.imageUrl === "string" ? data.imageUrl.trim() : "";
 
 		if (!trimmedText && !trimmedImageUrl) {
 			throw new Error("Please enter text or an image URL.");
