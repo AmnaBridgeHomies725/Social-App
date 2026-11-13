@@ -4,6 +4,8 @@
 - The home page loads the first page of posts.
 - `getPostsServerFn` returns posts, `hasMore`, and `nextCursor`.
 - Posts are ordered by `created_at` and `id` so pages stay in a stable order.
+- The current feed uses a Load More button; it does not load more posts automatically.
+- The server uses a default page size of 2 posts.
 
 ## Next-page flow
 1. The feed receives the first page and its `nextCursor`.
