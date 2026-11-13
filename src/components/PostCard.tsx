@@ -50,6 +50,8 @@ function PostCard({ post, currentUser }: PostCardProps) {
 						src={post.imageUrl}
 						alt={`${post.author}'s post`}
 						loading="lazy"
+						 width={800}
+        height={500}
 						className="post-card-image"
 					/>
 				)}
