@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import PostCard from "../components/PostCard";
 import { getPostsServerFn } from "../server/post.function";
 import { getSessionServerFn } from "../server/session.function";
-
+import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
 	loader: async () => {
 		const session = await getSessionServerFn();
@@ -28,12 +28,18 @@ function SocialFeed() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 
-	const loadMorePosts = async () => {
-		if (!cursor) return;
+	const sentinelRef = useRef<HTMLDivElement | null>(null);
+const loadingRef = useRef(false);
+
+	const loadMorePosts = useCallback(async () => {
+		if (!cursor || loadingRef.current) return;
+
+		loadingRef.current = true;
+	setIsLoading(true);
+	setError("");
 
 		try {
-			setIsLoading(true);
-			setError("");
+			
 
 			const next = await getPostsServerFn({
 				data: {
@@ -44,11 +50,33 @@ function SocialFeed() {
 			setFeedPosts((currentPosts) => [...currentPosts, ...next.posts]);
 			setCursor(next.nextCursor);
 		} catch {
-			setError("Posts load nahi ho sakin. Please try again.");
+			setError("Posts could not be loaded. Please try again.");
 		} finally {
+			loadingRef.current = false;
 			setIsLoading(false);
+			
 		}
-	};
+	}, [cursor]);
+
+	useEffect(() => {
+	const sentinel = sentinelRef.current;
+
+	if (!sentinel || !hasMore) return;
+
+	const observer = new IntersectionObserver(
+		(entries) => {
+			if (entries[0]?.isIntersecting) {
+				void loadMorePosts();
+			}
+		},
+		{ rootMargin: "200px 0px" },
+	);
+
+	observer.observe(sentinel);
+
+	return () => observer.disconnect();
+}, [hasMore, loadMorePosts]);
+
 
 	return (
 		<div className="social-feed-shell">
@@ -76,16 +104,26 @@ function SocialFeed() {
 				))
 			)}
 
-			{hasMore && (
-				<button
-					type="button"
-					onClick={loadMorePosts}
-					disabled={isLoading}
-					className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
-				>
-					{isLoading ? "Loading..." : "Load More"}
-				</button>
-			)}
+{hasMore && (
+	<div
+		ref={sentinelRef}
+		className="mt-4 min-h-10 text-center text-sm text-muted-foreground"
+		aria-live="polite"
+	>
+		{isLoading && <p>Loading more posts...</p>}
+
+		{error && (
+			<Button
+				type="button"
+				variant="outline"
+				onClick={() => void loadMorePosts()}
+				disabled={isLoading}
+			>
+				Retry loading posts
+			</Button>
+		)}
+	</div>
+)}
 		</div>
 	);
 }
