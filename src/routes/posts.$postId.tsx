@@ -11,6 +11,7 @@ import {
 } from "../server/post.function";
 import type { Post } from "../types/post";
 import {postDetailQueryOptions} from "../queries/post";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
 interface Comment {
 	id: number;
@@ -40,7 +41,18 @@ export const Route = createFileRoute("/posts/$postId")({
 });
 
 function PostDetailRoute() {
-	const post = Route.useLoaderData() as PostWithComments | null;
+	const { postId } = Route.useParams();
+	const id = Number(postId);
+
+	if (!Number.isInteger(id)) {
+		return <PostDetail post={null} />;
+	}
+
+	return <PostDetailWithQuery postId={id} />;
+}
+
+function PostDetailWithQuery({ postId }: { postId: number }) {
+	const { data: post } = useSuspenseQuery(postDetailQueryOptions(postId));
 
 	return <PostDetail post={post} />;
 }
