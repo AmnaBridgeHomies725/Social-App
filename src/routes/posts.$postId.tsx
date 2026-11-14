@@ -33,9 +33,9 @@ export const Route = createFileRoute("/posts/$postId")({
 			return null;
 		}
 
-		return await context.queryClient.ensureQueryData(
-			postDetailQueryOptions(postId),
-		);
+		await context.queryClient.ensureQueryData(
+	postDetailQueryOptions(postId),
+);
 	},
 	component: PostDetailRoute,
 });
