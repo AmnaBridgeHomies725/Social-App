@@ -1,7 +1,10 @@
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import type { QueryClient } from "@tanstack/react-query";
 import {
-	createRootRoute,
+	createRootRouteWithContext,
 	HeadContent,
 	Link,
+	Outlet,
 	redirect,
 	Scripts,
 	useRouterState,
@@ -32,7 +35,9 @@ const THEME_INIT_SCRIPT = `
 })();
 `;
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+	queryClient: QueryClient;
+}>()({
 	head: () => ({
 		meta: [
 			{ charSet: "utf-8" },
@@ -54,8 +59,18 @@ export const Route = createRootRoute({
 
 		return { user: session };
 	},
+	component: RootComponent,
 	shellComponent: RootDocument,
 });
+
+function RootComponent() {
+	return (
+		<>
+			<Outlet />
+			<ReactQueryDevtools buttonPosition="bottom-left" />
+		</>
+	);
+}
 
 function NotFound() {
 	return (
