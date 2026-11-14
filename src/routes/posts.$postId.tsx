@@ -10,6 +10,7 @@ import {
 	getPostByIdServerFn,
 } from "../server/post.function";
 import type { Post } from "../types/post";
+import {postDetailQueryOptions} from "../queries/post";
 
 interface Comment {
 	id: number;
@@ -24,16 +25,16 @@ type PostWithComments = Omit<Post, "comments"> & {
 };
 
 export const Route = createFileRoute("/posts/$postId")({
-	loader: async ({ params }) => {
+	loader: async ({ params, context }) => {
 		const postId = Number(params.postId);
 
 		if (!Number.isInteger(postId)) {
 			return null;
 		}
 
-		return await getPostByIdServerFn({
-			data: { postId },
-		});
+		return await context.queryClient.ensureQueryData(
+			postDetailQueryOptions(postId),
+		);
 	},
 	component: PostDetailRoute,
 });
