@@ -1,83 +1,87 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createFileRoute , useRouter} from "@tanstack/react-router";
+import { useCallback, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import PostCard from "../components/PostCard";
-import { getPostsServerFn } from "../server/post.function";
 import { getSessionServerFn } from "../server/session.function";
-import { Button } from "@/components/ui/button";
 import { feedQueryOptions } from "../queries/post";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
 	loader: async ({ context }) => {
 		const session = await getSessionServerFn();
-		const feed = await context.queryClient.ensureInfiniteQueryData(
-			feedQueryOptions(),
-		);
+		await context.queryClient.ensureInfiniteQueryData(feedQueryOptions());
 
-		return { feed: feed.pages[0], user: session };
+		return { user: session };
 	},
+	pendingComponent: () => (
+	<p className="p-4 text-center" aria-live="polite">
+		Loading feed...
+	</p>
+),
+errorComponent: FeedError,
 	component: SocialFeed,
 });
+
+function FeedError({ error }: { error: unknown }) {
+	const router = useRouter();
+
+	return (
+		<div className="p-4 text-center" role="alert">
+			<p>
+				{error instanceof Error
+					? error.message
+					: "Posts could not be loaded. Please try again."}
+			</p>
+			<Button type="button" onClick={() => void router.invalidate()}>
+				Retry loading feed
+			</Button>
+		</div>
+	);
+}
 
 function SocialFeed() {
 	const initial = Route.useLoaderData();
 
-	const currentUser = initial.user?.name ?? "";
+	const {
+		data,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+		isFetchNextPageError,
+		error
+	} = useSuspenseInfiniteQuery(feedQueryOptions());
 
-	const [feedPosts, setFeedPosts] = useState(initial.feed.posts);
-	const [cursor, setCursor] = useState<string | null>(initial.feed.nextCursor);
-	const hasMore = cursor !== null;
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState("");
+	const currentUser = initial.user?.name ?? "";
+	const feedPosts = data.pages.flatMap((page) => page.posts);
+	const hasMore = hasNextPage;
 
 	const sentinelRef = useRef<HTMLDivElement | null>(null);
-const loadingRef = useRef(false);
 
 	const loadMorePosts = useCallback(async () => {
-		if (!cursor || loadingRef.current) return;
+		if (!hasNextPage || isFetchingNextPage || isFetchNextPageError) return;
 
-		loadingRef.current = true;
-	setIsLoading(true);
-	setError("");
-
-		try {
-			
-
-			const next = await getPostsServerFn({
-				data: {
-					cursor,
-				},
-			});
-
-			setFeedPosts((currentPosts) => [...currentPosts, ...next.posts]);
-			setCursor(next.nextCursor);
-		} catch {
-			setError("Posts could not be loaded. Please try again.");
-		} finally {
-			loadingRef.current = false;
-			setIsLoading(false);
-			
-		}
-	}, [cursor]);
+		await fetchNextPage();
+	}, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError,]);
 
 	useEffect(() => {
-	const sentinel = sentinelRef.current;
+		const sentinel = sentinelRef.current;
 
-	if (!sentinel || !hasMore) return;
+		if (!sentinel || !hasMore || isFetchNextPageError) return;
 
-	const observer = new IntersectionObserver(
-		(entries) => {
-			if (entries[0]?.isIntersecting) {
-				void loadMorePosts();
-			}
-		},
-		{ rootMargin: "200px 0px" },
-	);
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting) {
+					void loadMorePosts();
+				}
+			},
+			{ rootMargin: "200px 0px" },
+		);
 
-	observer.observe(sentinel);
+		observer.observe(sentinel);
 
-	return () => observer.disconnect();
-}, [hasMore, loadMorePosts]);
+		return () => observer.disconnect();
+	}, [hasMore,isFetchNextPageError, loadMorePosts]);
 
 
 	return (
@@ -92,8 +96,6 @@ const loadingRef = useRef(false);
 				</p>
 			</header>
 
-			{error && <p className="mb-4 text-red-500">{error}</p>}
-
 			{feedPosts.length === 0 ? (
 				<Card>
 					<CardContent className="p-8 text-center text-muted-foreground">
@@ -106,25 +108,35 @@ const loadingRef = useRef(false);
 				))
 			)}
 
-{hasMore && (
-	<div
-		ref={sentinelRef}
-		className="mt-4 min-h-10 text-center text-sm text-muted-foreground"
-		aria-live="polite"
-	>
-		{isLoading && <p>Loading more posts...</p>}
-
-		{error && (
-			<Button
-				type="button"
-				variant="outline"
-				onClick={() => void loadMorePosts()}
-				disabled={isLoading}
-			>
-				Retry loading posts
-			</Button>
-		)}
+			{hasMore && (
+				<div
+					ref={sentinelRef}
+					className="mt-4 min-h-10 text-center text-sm text-muted-foreground"
+					aria-live="polite"
+				>
+					{isFetchingNextPage && <p>Loading more posts...</p>}
+					{isFetchNextPageError && (
+	<div role="alert">
+		<p>
+			{error instanceof Error
+				? error.message
+				: "More posts could not be loaded."}
+		</p>
+		<Button
+			type="button"
+			variant="outline"
+			onClick={() => void fetchNextPage()}
+		>
+			Retry loading posts
+		</Button>
 	</div>
+)}
+				</div>
+			)}
+			{!hasMore && feedPosts.length > 0 && (
+	<p className="mt-4 text-center text-sm text-muted-foreground">
+		You&apos;re all caught up.
+	</p>
 )}
 		</div>
 	);
