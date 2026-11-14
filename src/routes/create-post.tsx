@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createPostServerFn } from "../server/post.function";
+import { useQueryClient } from "@tanstack/react-query";
+import { postKeys } from "../queries/post";
 
 export const Route = createFileRoute("/create-post")({
 	component: CreatePost,
@@ -17,6 +19,7 @@ export const Route = createFileRoute("/create-post")({
 function CreatePost() {
 	const navigate = useNavigate();
 	const router = useRouter();
+		const queryClient = useQueryClient();
 
 	const [text, setText] = useState("");
 	const [imageUrl, setImageUrl] = useState("");
@@ -36,6 +39,8 @@ function CreatePost() {
 					imageUrl,
 				},
 			});
+
+			queryClient.removeQueries({ queryKey: postKeys.feed() }); 
 
 			await router.invalidate();
 			navigate({ to: "/" });

@@ -5,14 +5,16 @@ import PostCard from "../components/PostCard";
 import { getPostsServerFn } from "../server/post.function";
 import { getSessionServerFn } from "../server/session.function";
 import { Button } from "@/components/ui/button";
-export const Route = createFileRoute("/")({
-	loader: async () => {
-		const session = await getSessionServerFn();
-		const feed = await getPostsServerFn({
-			data: {},
-		});
+import { feedQueryOptions } from "../queries/post";
 
-		return { feed, user: session };
+export const Route = createFileRoute("/")({
+	loader: async ({ context }) => {
+		const session = await getSessionServerFn();
+		const feed = await context.queryClient.ensureInfiniteQueryData(
+			feedQueryOptions(),
+		);
+
+		return { feed: feed.pages[0], user: session };
 	},
 	component: SocialFeed,
 });
