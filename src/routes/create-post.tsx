@@ -1,16 +1,15 @@
 import {
 	createFileRoute,
 	useNavigate,
-	useRouter,
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createPostServerFn } from "../server/post.function";
-import { useQueryClient } from "@tanstack/react-query";
-import { postKeys } from "../queries/post";
+
+
+import { useCreatePostMutation } from "../queries/post";
 
 export const Route = createFileRoute("/create-post")({
 	component: CreatePost,
@@ -18,42 +17,35 @@ export const Route = createFileRoute("/create-post")({
 
 function CreatePost() {
 	const navigate = useNavigate();
-	const router = useRouter();
-		const queryClient = useQueryClient();
+	const createPostMutation = useCreatePostMutation();
 
 	const [text, setText] = useState("");
 	const [imageUrl, setImageUrl] = useState("");
 	const [error, setError] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
+	
 
-	async function handleSubmit(event: React.FormEvent) {
-		event.preventDefault();
 
-		setError("");
-		setIsLoading(true);
+async function handleSubmit(event: React.FormEvent) {
+  event.preventDefault();
 
-		try {
-			await createPostServerFn({
-				data: {
-					text,
-					imageUrl,
-				},
-			});
+  setError("");
 
-			queryClient.removeQueries({ queryKey: postKeys.feed() }); 
+  try {
+    await createPostMutation.mutateAsync({
+      text,
+      imageUrl,
+    });
 
-			await router.invalidate();
-			navigate({ to: "/" });
-		} catch (err) {
-			setError(
-				err instanceof Error
-					? err.message
-					: "Something went wrong. Please try again.",
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	}
+    navigate({ to: "/" });
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Something went wrong. Please try again."
+    );
+  }
+}
+
 
 	return (
 		<div className="mx-auto w-full max-w-2xl">
@@ -103,9 +95,14 @@ function CreatePost() {
 
 						{error && <p className="text-sm text-destructive">{error}</p>}
 
-						<Button type="submit" disabled={isLoading}>
-							{isLoading ? "Creating..." : "Create Post"}
-						</Button>
+						<Button
+  type="submit"
+  disabled={createPostMutation.isPending}
+>
+  {createPostMutation.isPending
+    ? "Creating..."
+    : "Create Post"}
+</Button>
 					</form>
 				</CardContent>
 			</Card>
