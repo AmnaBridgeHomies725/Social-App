@@ -1,17 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Send } from "lucide-react";
-import { useEffect, useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import {
-	createCommentServerFn,
-	getPostByIdServerFn,
-} from "../server/post.function";
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+
+import {
+	postDetailQueryOptions,
+	useCreateCommentMutation,
+	useToggleLikeMutation,
+} from "../queries/post";
+
 import type { Post } from "../types/post";
-import {postDetailQueryOptions} from "../queries/post";
-import { useSuspenseQuery } from "@tanstack/react-query";
 
 interface Comment {
 	id: number;
@@ -63,13 +71,14 @@ interface PostDetailProps {
 
 function PostDetail({ post }: PostDetailProps) {
 	const [commentText, setCommentText] = useState("");
-	const [comments, setComments] = useState<Comment[]>(post?.comments ?? []);
+	
 	const [error, setError] = useState("");
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	
 
-	useEffect(() => {
-		setComments(post?.comments ?? []);
-	}, [post]);
+	const commentMutation = useCreateCommentMutation();
+	const likeMutation = useToggleLikeMutation();
+
+
 
 	if (!post) {
 		return (
@@ -85,36 +94,24 @@ function PostDetail({ post }: PostDetailProps) {
 	const currentPost = post;
 
 	async function handleAddComment() {
-		if (!commentText.trim()) {
-			setError("Comment cannot be empty");
-			return;
-		}
-
-		setIsSubmitting(true);
-		setError("");
-
-		try {
-			await createCommentServerFn({
-				data: {
-					postId: currentPost.id,
-					comment: commentText,
-				},
-			});
-
-			const updatedPost = await getPostByIdServerFn({
-				data: {
-					postId: currentPost.id,
-				},
-			});
-
-			setComments(updatedPost?.comments ?? []);
-			setCommentText("");
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Something went wrong");
-		} finally {
-			setIsSubmitting(false);
-		}
+	if (!commentText.trim()) {
+		setError("Comment cannot be empty");
+		return;
 	}
+
+	setError("");
+
+	try {
+		await commentMutation.mutateAsync({
+			postId: currentPost.id,
+			comment: commentText,
+		});
+
+		setCommentText("");
+	} catch (err) {
+		setError(err instanceof Error ? err.message : "Something went wrong");
+	}
+}
 
 	return (
 		<div className="mx-auto max-w-2xl space-y-4 p-4">
@@ -139,11 +136,24 @@ function PostDetail({ post }: PostDetailProps) {
 
 					<p className="whitespace-pre-wrap">{post.text}</p>
 
-					<div className="flex gap-3">
-						<Badge variant="secondary">❤️ {post.likes} Likes</Badge>
+				<div className="flex items-center gap-3">
+    <Button
+        type="button"
+        variant="outline"
+        disabled={likeMutation.isPending}
+        onClick={() => likeMutation.mutate(post.id)}
+    >
+        Like
+    </Button>
 
-						<Badge variant="secondary">💬 {comments.length} Comments</Badge>
-					</div>
+    <Badge variant="secondary">
+        ❤️ {post.likes} Likes
+    </Badge>
+
+    <Badge variant="secondary">
+        💬 {post.comments.length} Comments
+    </Badge>
+</div>
 
 					<div className="space-y-3 border-t pt-4">
 						<h3 className="font-semibold">Add a comment</h3>
@@ -161,7 +171,7 @@ function PostDetail({ post }: PostDetailProps) {
 							<Button
 								size="icon"
 								className="h-11 w-11 shrink-0 rounded-full"
-								disabled={!commentText.trim() || isSubmitting}
+								disabled={!commentText.trim() || commentMutation.isPending}
 								onClick={handleAddComment}
 							>
 								<Send size={18} />
@@ -178,13 +188,13 @@ function PostDetail({ post }: PostDetailProps) {
 					<div className="space-y-3 border-t pt-4">
 						<h3 className="font-semibold">Comments</h3>
 
-						{comments.length === 0 ? (
+						{post.comments.length === 0 ? (
 							<p className="text-sm text-muted-foreground">
 								No comments yet. Be the first to comment!
 							</p>
 						) : (
 							<div className="space-y-2">
-								{comments.map((comment) => (
+								{post.comments.map((comment) => (
 									<div
 										key={comment.id}
 										className="rounded-lg bg-muted p-3 text-sm"
