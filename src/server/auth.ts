@@ -1,10 +1,9 @@
-import { resolve } from "node:path";
 import { betterAuth } from "better-auth";
-import Database from "better-sqlite3";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import db from "./database/postgres-db";
+import * as schema from "./database/schema";
 
 export const auth = betterAuth({
-	database: new Database(resolve(process.cwd(), "database", "social-app.db")),
-	emailAndPassword: {
-		enabled: true,
-	},
+	database: drizzleAdapter(db, { provider: "pg", schema }),
+	emailAndPassword: { enabled: true },
 });
