@@ -3,6 +3,9 @@ import type { Comment, FeedRow, PostRow } from "../types/db";
 import type { Post } from "../types/post";
 import db from "./database/db";
 import { getSessionServerFn } from "./session.function";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 type PostWithComments = Omit<Post, "comments"> & {
 	comments: Comment[];
@@ -89,32 +92,40 @@ export const getPostsServerFn = createServerFn({
 export const createPostServerFn = createServerFn({
 	method: "POST",
 })
-	.validator((data: { text: string; imageUrl: string }) => {
-		const trimmedText = typeof data.text === "string" ? data.text.trim() : "";
-		const trimmedImageUrl =
-			typeof data.imageUrl === "string" ? data.imageUrl.trim() : "";
+	
+.validator((data: { text: string; imageUrl: string }) => {
+  const trimmedText = data.text.trim();
+  const trimmedImageUrl = data.imageUrl.trim();
 
-		if (!trimmedText && !trimmedImageUrl) {
-			throw new Error("Please enter text or an image URL.");
-		}
+  if (!trimmedText) {
+    throw new Error("Post text cannot be empty.");
+  }
 
-		if (trimmedText.length > 500) {
-			throw new Error("Post text cannot exceed 500 characters.");
-		}
+  if (trimmedText.length > 500) {
+    throw new Error("Post cannot exceed 500 characters.");
+  }
 
-		if (
-			trimmedImageUrl &&
-			!trimmedImageUrl.startsWith("http://") &&
-			!trimmedImageUrl.startsWith("https://")
-		) {
-			throw new Error("Please enter a valid HTTP or HTTPS image URL.");
-		}
+  const isValidExternalUrl =
+    /^https?:\/\/\S+$/i.test(trimmedImageUrl);
 
-		return {
-			text: trimmedText,
-			imageUrl: trimmedImageUrl,
-		};
-	})
+  const isValidLocalUpload =
+    /^\/uploads\/[a-zA-Z0-9-]+\.(jpg|jpeg|png|webp)$/i.test(
+      trimmedImageUrl,
+    );
+
+  if (
+    trimmedImageUrl &&
+    !isValidExternalUrl &&
+    !isValidLocalUpload
+  ) {
+    throw new Error("Please enter a valid image URL.");
+  }
+
+  return {
+    text: trimmedText,
+    imageUrl: trimmedImageUrl,
+  };
+})
 	.handler(async ({ data }) => {
 		const session = await getSessionServerFn();
 		if (!session) {
@@ -293,3 +304,50 @@ export const getPostByIdServerFn = createServerFn({
 			comments,
 		};
 	});
+
+	export const uploadImageServerFn = createServerFn({
+  method: "POST",
+})
+  .validator((data: FormData) => data)
+  .handler(async ({ data }) => {
+    const file = data.get("image");
+
+    if (!(file instanceof File)) {
+      throw new Error("No image file provided.");
+    }
+
+    const allowedTypes: Record<string, string> = {
+      "image/jpeg": ".jpg",
+      "image/png": ".png",
+      "image/webp": ".webp",
+    };
+
+    if (!allowedTypes[file.type]) {
+      throw new Error("Only JPG, PNG, and WEBP images are allowed.");
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error("Image size must be less than 5 MB.");
+    }
+
+    const filename = `${randomUUID()}${allowedTypes[file.type]}`;
+
+    const uploadDirectory = path.join(
+      process.cwd(),
+      "public",
+      "uploads",
+    );
+
+    await mkdir(uploadDirectory, { recursive: true });
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    await writeFile(
+      path.join(uploadDirectory, filename),
+      buffer,
+    );
+
+    return {
+      imageUrl: `/uploads/${filename}`,
+    };
+  });
