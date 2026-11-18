@@ -2,14 +2,18 @@ import {
 	createFileRoute,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState , useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import {
+  useCreatePostMutation,
+  useUploadImageMutation,
+} from "../queries/post";
 
-import { useCreatePostMutation } from "../queries/post";
+
 
 export const Route = createFileRoute("/create-post")({
 	component: CreatePost,
@@ -18,12 +22,26 @@ export const Route = createFileRoute("/create-post")({
 function CreatePost() {
 	const navigate = useNavigate();
 	const createPostMutation = useCreatePostMutation();
+const uploadImageMutation = useUploadImageMutation();
 
 	const [text, setText] = useState("");
-	const [imageUrl, setImageUrl] = useState("");
+	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [imagePreview, setImagePreview] = useState("");
 	const [error, setError] = useState("");
 	
+useEffect(() => {
+  if (!imageFile) {
+    setImagePreview("");
+    return;
+  }
 
+  const previewUrl = URL.createObjectURL(imageFile);
+  setImagePreview(previewUrl);
+
+  return () => {
+    URL.revokeObjectURL(previewUrl);
+  };
+}, [imageFile]);
 
 async function handleSubmit(event: React.FormEvent) {
   event.preventDefault();
@@ -31,6 +49,17 @@ async function handleSubmit(event: React.FormEvent) {
   setError("");
 
   try {
+    let imageUrl = "";
+
+    
+    if (imageFile) {
+      const uploadResult =
+        await uploadImageMutation.mutateAsync(imageFile);
+
+      imageUrl = uploadResult.imageUrl;
+    }
+
+   
     await createPostMutation.mutateAsync({
       text,
       imageUrl,
@@ -72,36 +101,64 @@ async function handleSubmit(event: React.FormEvent) {
 							{text.length}/500 characters
 						</p>
 
-						<Input
-							type="url"
-							placeholder="Image URL (optional)"
-							value={imageUrl}
-							onChange={(e) => {
-								setImageUrl(e.target.value);
-								setError("");
-							}}
-						/>
+<Input
+  type="file"
+  accept="image/jpeg,image/png,image/webp"
+  onChange={(e) => {
+    const file = e.target.files?.[0] ?? null;
 
-						{imageUrl && (
-							<img
-								src={imageUrl}
-								alt="Post preview"
-								className="max-h-80 w-full rounded-lg object-cover"
-								onError={(e) => {
-									e.currentTarget.style.display = "none";
-								}}
-							/>
-						)}
+    setError("");
+
+    if (!file) {
+      setImageFile(null);
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setError("Only JPG, PNG, and WEBP images are allowed.");
+      setImageFile(null);
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size must be less than 5 MB.");
+      setImageFile(null);
+      return;
+    }
+
+    setImageFile(file);
+  }}
+/>
+						{imagePreview && (
+  <img
+    src={imagePreview}
+    alt="Selected image preview"
+    className="max-h-80 w-full rounded-lg object-cover"
+  />
+)}
+
+						
 
 						{error && <p className="text-sm text-destructive">{error}</p>}
 
-						<Button
+<Button
   type="submit"
-  disabled={createPostMutation.isPending}
+  disabled={
+    createPostMutation.isPending ||
+    uploadImageMutation.isPending
+  }
 >
-  {createPostMutation.isPending
-    ? "Creating..."
-    : "Create Post"}
+  {uploadImageMutation.isPending
+    ? "Uploading image..."
+    : createPostMutation.isPending
+      ? "Creating post..."
+      : "Create Post"}
 </Button>
 					</form>
 				</CardContent>
