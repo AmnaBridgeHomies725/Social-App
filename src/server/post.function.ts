@@ -1,93 +1,127 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { Comment, FeedRow, PostRow } from "../types/db";
-import type { Post } from "../types/post";
-import db from "./database/db";
 import { getSessionServerFn } from "./session.function";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-type PostWithComments = Omit<Post, "comments"> & {
-	comments: Comment[];
-};
+import {
+  and,
+  desc,
+  ilike,
+  sql,
+  lt,
+  or,
+  eq,
+  asc,
+} from "drizzle-orm";
 
-function findPost(postId: number) {
-	return db.prepare("SELECT id FROM posts WHERE id = ?").get(postId) as
-		| { id: number }
-		| undefined;
-}
+import {
+  posts,
+  likes,
+  comments,
+} from "./database/schema";
+
+import pgDb from "./database/postgres-db";
 
 export const getPostsServerFn = createServerFn({
-	method: "GET",
+  method: "GET",
 })
-	.validator(
-		(data: { pageSize?: number; cursor?: string; search?: string }) => ({
-			pageSize: Math.min(Math.max(data.pageSize ?? 2, 1), 50),
-			cursor: data.cursor,
-			search: data.search,
-		}),
-	)
-	.handler(async ({ data }) => {
-		const session = await getSessionServerFn();
-		const search = `%${data.search?.trim() ?? ""}%`;
-		const decoded = data.cursor
-			? (JSON.parse(Buffer.from(data.cursor, "base64url").toString("utf8")) as {
-					createdAt: string;
-					id: number;
-				})
-			: null;
-		const rows = db
-			.prepare(
-				`SELECT
-      p.id,
-      p.author,
-      p.text,
-      p.image_url,
-      p.created_at,
-      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS likes,
-      (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
-      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id AND l.user_id = ?) AS liked_by_me
-    FROM posts p
-    WHERE (p.text LIKE ? OR p.author LIKE ?)
-      AND (? IS NULL OR p.created_at < ? OR (p.created_at = ? AND p.id < ?))
-    ORDER BY p.created_at DESC, p.id DESC
-    LIMIT ?`,
-			)
-			.all(
-				session?.id ?? "",
-				search,
-				search,
-				decoded ? 1 : null,
-				decoded?.createdAt ?? null,
-				decoded?.createdAt ?? null,
-				decoded?.id ?? null,
-				data.pageSize + 1,
-			) as FeedRow[];
+  .validator(
+    (data: { pageSize?: number; cursor?: string; search?: string }) => ({
+      pageSize: Math.min(Math.max(data.pageSize ?? 2, 1), 50),
+      cursor: data.cursor,
+      search: data.search,
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionServerFn();
+    const search = `%${data.search?.trim() ?? ""}%`;
 
-		const hasMore = rows.length > data.pageSize;
-		const pageRows = hasMore ? rows.slice(0, data.pageSize) : rows;
-		const last = pageRows[pageRows.length - 1];
+    const decoded = data.cursor
+      ? (JSON.parse(
+          Buffer.from(data.cursor, "base64url").toString("utf8"),
+        ) as { createdAt: string; id: number })
+      : null;
 
-		return {
-			posts: pageRows.map((row) => ({
-				id: row.id,
-				author: row.author,
-				text: row.text,
-				imageUrl: row.image_url ?? undefined,
-				timestamp: row.created_at,
-				likes: row.likes,
-				comments: new Array(row.comment_count).fill(""),
-				isLiked: row.liked_by_me === 1,
-			})),
-			hasMore,
-			nextCursor:
-				hasMore && last
-					? Buffer.from(
-							JSON.stringify({ createdAt: last.created_at, id: last.id }),
-						).toString("base64url")
-					: null,
-		};
-	});
+    const conditions = [
+      or(
+        ilike(posts.text, search),
+        ilike(posts.author, search),
+      ),
+    ];
+
+    if (decoded) {
+      conditions.push(
+        or(
+          lt(posts.createdAt, decoded.createdAt),
+          and(
+            eq(posts.createdAt, decoded.createdAt),
+            lt(posts.id, decoded.id),
+          ),
+        )!,
+      );
+    }
+
+    const rows = await pgDb
+      .select({
+        id: posts.id,
+        author: posts.author,
+        text: posts.text,
+        imageUrl: posts.imageUrl,
+        createdAt: posts.createdAt,
+        likes: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${likes}
+          WHERE ${likes.postId} = ${posts.id}
+        )`,
+        commentCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${comments}
+          WHERE ${comments.postId} = ${posts.id}
+        )`,
+        likedByMe: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${likes}
+          WHERE ${likes.postId} = ${posts.id}
+          AND ${likes.userId} = ${session?.id ?? ""}
+        )`,
+      })
+      .from(posts)
+      .where(and(...conditions))
+      .orderBy(desc(posts.createdAt), desc(posts.id))
+      .limit(data.pageSize + 1);
+
+    const hasMore = rows.length > data.pageSize;
+    const pageRows = hasMore
+      ? rows.slice(0, data.pageSize)
+      : rows;
+
+    const last = pageRows[pageRows.length - 1];
+
+    return {
+      posts: pageRows.map((row) => ({
+        id: row.id,
+        author: row.author,
+        text: row.text,
+        imageUrl: row.imageUrl ?? undefined,
+        timestamp: row.createdAt,
+        likes: row.likes,
+        comments: new Array(row.commentCount).fill(""),
+        isLiked: row.likedByMe > 0,
+      })),
+      hasMore,
+      nextCursor:
+        hasMore && last
+          ? Buffer.from(
+              JSON.stringify({
+                createdAt: last.createdAt,
+                id: last.id,
+              }),
+            ).toString("base64url")
+          : null,
+    };
+  });
+
 
 export const createPostServerFn = createServerFn({
 	method: "POST",
@@ -126,184 +160,221 @@ export const createPostServerFn = createServerFn({
     imageUrl: trimmedImageUrl,
   };
 })
-	.handler(async ({ data }) => {
-		const session = await getSessionServerFn();
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
 
-		const createdAt = new Date().toISOString();
+.handler(async ({ data }) => {
+  const session = await getSessionServerFn();
 
-		const result = db
-			.prepare(
-				"INSERT INTO posts (author, text, image_url, created_at) VALUES (?, ?, ?, ?)",
-			)
-			.run(session.name, data.text, data.imageUrl || null, createdAt);
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
 
-		return {
-			id: Number(result.lastInsertRowid),
-			author: session.name,
-			text: data.text,
-			imageUrl: data.imageUrl,
-			timestamp: createdAt,
-			likes: 0,
-			comments: [],
-		};
-	});
+  const createdAt = new Date().toISOString();
+
+  const [newPost] = await pgDb
+    .insert(posts)
+    .values({
+      author: session.name,
+      text: data.text,
+      imageUrl: data.imageUrl || null,
+      createdAt,
+    })
+    .returning();
+
+  return {
+    id: newPost.id,
+    author: newPost.author,
+    text: newPost.text,
+    imageUrl: newPost.imageUrl ?? undefined,
+    timestamp: newPost.createdAt,
+    likes: 0,
+    comments: [],
+  };
+});
+
+
 
 export const toggleLikeServerFn = createServerFn({
-	method: "POST",
+  method: "POST",
 })
-	.validator((data: { postId: number }) => {
-		if (!Number.isInteger(data.postId)) {
-			throw new Error("Invalid post ID");
-		}
+  .validator((data: { postId: number }) => {
+    if (!Number.isInteger(data.postId)) {
+      throw new Error("Invalid post ID");
+    }
 
-		return data;
-	})
-	.handler(async ({ data }) => {
-		const session = await getSessionServerFn();
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
-		const post = findPost(data.postId);
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const session = await getSessionServerFn();
 
-		if (!post) {
-			throw new Error("Post not found");
-		}
+    if (!session) {
+      throw new Error("Unauthorized");
+    }
 
-		const userId = session.id;
+    
+    const [post] = await pgDb
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.id, data.postId))
+      .limit(1);
 
-		const existingLike = db
-			.prepare("SELECT id FROM likes WHERE post_id = ? AND user_id = ?")
-			.get(post.id, userId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
 
-		if (existingLike) {
-			db.prepare("DELETE FROM likes WHERE post_id = ? AND user_id = ?").run(
-				post.id,
-				userId,
-			);
-		} else {
-			db.prepare("INSERT INTO likes (post_id, user_id) VALUES (?, ?)").run(
-				post.id,
-				userId,
-			);
-		}
+    const userId = session.id;
 
-		const countRow = db
-			.prepare("SELECT COUNT(*) as count FROM likes WHERE post_id = ?")
-			.get(post.id) as { count: number };
 
-		return {
-			postId: post.id,
-			likes: countRow.count,
-			isLiked: !existingLike,
-		};
-	});
+    const [existingLike] = await pgDb
+      .select({ id: likes.id })
+      .from(likes)
+      .where(
+        and(
+          eq(likes.postId, post.id),
+          eq(likes.userId, userId),
+        ),
+      )
+      .limit(1);
+
+    if (existingLike) {
+     
+      await pgDb
+        .delete(likes)
+        .where(eq(likes.id, existingLike.id));
+    } else {
+     
+      await pgDb.insert(likes).values({
+        postId: post.id,
+        userId,
+      });
+    }
+
+    
+    const [countRow] = await pgDb
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(likes)
+      .where(eq(likes.postId, post.id));
+
+    return {
+      postId: post.id,
+      likes: countRow.count,
+      isLiked: !existingLike,
+    };
+  });
+
 
 export const createCommentServerFn = createServerFn({
-	method: "POST",
+  method: "POST",
 })
-	.validator((data: { postId: number; comment: string }) => {
-		const trimmedComment = data.comment.trim();
+  .validator((data: { postId: number; comment: string }) => {
+    if (!Number.isInteger(data.postId)) {
+      throw new Error("Invalid post ID");
+    }
 
-		if (!Number.isInteger(data.postId)) {
-			throw new Error("Invalid post ID");
-		}
+    if (!data.comment.trim()) {
+      throw new Error("Comment cannot be empty");
+    }
 
-		if (!trimmedComment) {
-			throw new Error("Comment cannot be empty");
-		}
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const session = await getSessionServerFn();
 
-		if (trimmedComment.length > 300) {
-			throw new Error("Comment cannot exceed 300 characters");
-		}
+    if (!session) {
+      throw new Error("Unauthorized");
+    }
 
-		return {
-			postId: data.postId,
-			comment: trimmedComment,
-		};
-	})
-	.handler(async ({ data }) => {
-		const session = await getSessionServerFn();
-		if (!session) {
-			throw new Error("Unauthorized");
-		}
-		const post = findPost(data.postId);
+   
+    const [post] = await pgDb
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.id, data.postId))
+      .limit(1);
 
-		if (!post) {
-			throw new Error("Post not found");
-		}
+    if (!post) {
+      throw new Error("Post not found");
+    }
 
-		const result = db
-			.prepare(
-				"INSERT INTO comments (post_id, user_id, comment) VALUES (?, ?, ?)",
-			)
-			.run(data.postId, session.name, data.comment);
+    
+    const [newComment] = await pgDb
+      .insert(comments)
+      .values({
+        postId: data.postId,
+        userId: session.name,
+        comment: data.comment,
+      })
+      .returning();
 
-		const newComment = db
-			.prepare(
-				`SELECT id, post_id, user_id, comment, created_at
-				FROM comments
-				WHERE id = ?`,
-			)
-			.get(result.lastInsertRowid) as Comment | undefined;
+    if (!newComment) {
+      throw new Error("Comment could not be created");
+    }
 
-		if (!newComment) {
-			throw new Error("Comment could not be created");
-		}
-
-		return newComment;
-	});
+    return {
+      id: newComment.id,
+      post_id: newComment.postId,
+      user_id: newComment.userId,
+      comment: newComment.comment,
+      created_at: newComment.createdAt,
+    };
+  });
 
 export const getPostByIdServerFn = createServerFn({
-	method: "GET",
+  method: "GET",
 })
-	.validator((data: { postId: number }) => {
-		if (!Number.isInteger(data.postId)) {
-			throw new Error("Invalid post ID");
-		}
+  .validator((data: { postId: number }) => {
+    if (!Number.isInteger(data.postId)) {
+      throw new Error("Invalid post ID");
+    }
 
-		return data;
-	})
-	.handler(async ({ data }): Promise<PostWithComments | null> => {
-		const row = db
-			.prepare(
-				`SELECT
-					p.id,
-					p.author,
-					p.text,
-					p.image_url,
-					p.created_at,
-					(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS likes
-				FROM posts p
-				WHERE p.id = ?`,
-			)
-			.get(data.postId) as PostRow | undefined;
+    return data;
+  })
+  .handler(async ({ data }) => {
+   
+    const [post] = await pgDb
+      .select({
+        id: posts.id,
+        author: posts.author,
+        text: posts.text,
+        imageUrl: posts.imageUrl,
+        createdAt: posts.createdAt,
+        likes: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${likes}
+          WHERE ${likes.postId} = ${posts.id}
+        )`,
+      })
+      .from(posts)
+      .where(eq(posts.id, data.postId))
+      .limit(1);
 
-		if (!row) {
-			return null;
-		}
+    if (!post) {
+      return null;
+    }
 
-		const comments = db
-			.prepare(
-				`SELECT id, post_id, user_id, comment, created_at
-				FROM comments
-				WHERE post_id = ?
-				ORDER BY created_at ASC, id ASC`,
-			)
-			.all(data.postId) as Comment[];
 
-		return {
-			id: row.id,
-			author: row.author,
-			text: row.text,
-			imageUrl: row.image_url ?? undefined,
-			timestamp: row.created_at,
-			likes: row.likes,
-			comments,
-		};
-	});
+    const commentRows = await pgDb
+      .select({
+        id: comments.id,
+        post_id: comments.postId,
+        user_id: comments.userId,
+        comment: comments.comment,
+        created_at: comments.createdAt,
+      })
+      .from(comments)
+      .where(eq(comments.postId, data.postId))
+      .orderBy(asc(comments.createdAt), asc(comments.id));
+
+    return {
+      id: post.id,
+      author: post.author,
+      text: post.text,
+      imageUrl: post.imageUrl ?? undefined,
+      timestamp: post.createdAt,
+      likes: post.likes,
+      comments: commentRows,
+    };
+  });
 
 	export const uploadImageServerFn = createServerFn({
   method: "POST",
