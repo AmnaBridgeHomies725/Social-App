@@ -13,6 +13,7 @@ import {
 	getPostByIdServerFn,
 	getPostsServerFn,
 	toggleLikeServerFn,
+	uploadImageServerFn,
 } from "#/server/post.function";
 
 import type { Post } from "../types/post";
@@ -72,6 +73,19 @@ export function useCreatePostMutation() {
 	});
 }
 
+export function useUploadImageMutation() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+
+      formData.append("image", file);
+
+      return uploadImageServerFn({
+        data: formData,
+      });
+    },
+  });
+}
 
 export function useToggleLikeMutation() {
 	const queryClient = useQueryClient();
