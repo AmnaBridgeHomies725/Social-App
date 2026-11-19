@@ -143,7 +143,7 @@ function PostDetail({ post }: PostDetailProps) {
         disabled={likeMutation.isPending}
         onClick={() => likeMutation.mutate(post.id)}
     >
-        Like
+        {post.isLiked ? "Liked" : "Like"}
     </Button>
 
     <Badge variant="secondary">

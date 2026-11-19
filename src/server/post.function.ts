@@ -365,7 +365,8 @@ export const getPostByIdServerFn = createServerFn({
     return data;
   })
   .handler(async ({ data }) => {
-   
+    const session = await getSessionServerFn();
+
     const [post] = await pgDb
       .select({
         id: posts.id,
@@ -378,6 +379,12 @@ export const getPostByIdServerFn = createServerFn({
           SELECT COUNT(*)::int
           FROM ${likes}
           WHERE ${likes.postId} = ${posts.id}
+        )`,
+        likedByMe: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${likes}
+          WHERE ${likes.postId} = ${posts.id}
+          AND ${likes.userId} = ${session?.id ?? ""}
         )`,
       })
       .from(posts)
@@ -410,6 +417,7 @@ export const getPostByIdServerFn = createServerFn({
       timestamp: post.createdAt,
       likes: post.likes,
       comments: commentRows,
+      isLiked: post.likedByMe > 0,
     };
   });
 
