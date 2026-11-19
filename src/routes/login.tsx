@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,11 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "../lib/auth-client";
 
 export const Route = createFileRoute("/login")({
+	beforeLoad: ({ context }) => {
+		if (context.user) {
+			throw redirect({ to: "/" });
+		}
+	},
 	component: LoginPage,
 });
 
