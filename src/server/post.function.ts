@@ -89,19 +89,19 @@ export const getPostsServerFn = createServerFn({
         createdAt: posts.createdAt,
         likes: sql<number>`(
           SELECT COUNT(*)::int
-          FROM ${likes}
-          WHERE ${likes.postId} = ${posts.id}
+          FROM "likes"
+          WHERE "likes"."post_id" = "posts"."id"
         )`,
         commentCount: sql<number>`(
           SELECT COUNT(*)::int
-          FROM ${comments}
-          WHERE ${comments.postId} = ${posts.id}
+          FROM "comments"
+          WHERE "comments"."post_id" = "posts"."id"
         )`,
         likedByMe: sql<number>`(
           SELECT COUNT(*)::int
-          FROM ${likes}
-          WHERE ${likes.postId} = ${posts.id}
-          AND ${likes.userId} = ${session?.id ?? ""}
+          FROM "likes"
+          WHERE "likes"."post_id" = "posts"."id"
+          AND "likes"."user_id" = ${session?.id ?? ""}
         )`,
       })
       .from(posts)
@@ -377,14 +377,14 @@ export const getPostByIdServerFn = createServerFn({
         createdAt: posts.createdAt,
         likes: sql<number>`(
           SELECT COUNT(*)::int
-          FROM ${likes}
-          WHERE ${likes.postId} = ${posts.id}
+          FROM "likes"
+          WHERE "likes"."post_id" = "posts"."id"
         )`,
         likedByMe: sql<number>`(
           SELECT COUNT(*)::int
-          FROM ${likes}
-          WHERE ${likes.postId} = ${posts.id}
-          AND ${likes.userId} = ${session?.id ?? ""}
+          FROM "likes"
+          WHERE "likes"."post_id" = "posts"."id"
+          AND "likes"."user_id" = ${session?.id ?? ""}
         )`,
       })
       .from(posts)
