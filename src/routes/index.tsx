@@ -2,17 +2,15 @@ import { createFileRoute , useRouter} from "@tanstack/react-router";
 import { useCallback, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import PostCard from "../components/PostCard";
-import { getSessionServerFn } from "../server/session.function";
 import { feedQueryOptions } from "../queries/post";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
 	loader: async ({ context }) => {
-		const session = await getSessionServerFn();
 		await context.queryClient.ensureInfiniteQueryData(feedQueryOptions());
 
-		return { user: session };
+		return { user: context.user };
 	},
 	pendingComponent: () => (
 	<p className="p-4 text-center" aria-live="polite">
