@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSessionServerFn } from "./session.function";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -509,4 +509,39 @@ export const getPostByIdServerFn = createServerFn({
     return {
       imageUrl: `/uploads/${filename}`,
     };
+  });
+
+export const deleteUploadedImageServerFn = createServerFn({
+  method: "POST",
+})
+  .validator((data: { imageUrl: string }) => {
+    if (typeof data.imageUrl !== "string") {
+      throw new Error("Invalid image URL");
+    }
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const session = await getSessionServerFn();
+
+    if (!session) {
+      throw new Error("Unauthorized");
+    }
+
+    const uuidPattern =
+      /^\/uploads\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.(jpg|jpeg|png|webp)$/i;
+
+    if (!uuidPattern.test(data.imageUrl)) {
+      throw new Error("Invalid file path");
+    }
+
+    const filename = path.basename(data.imageUrl);
+    const targetPath = path.join(process.cwd(), "public", "uploads", filename);
+
+    try {
+      await unlink(targetPath);
+    } catch {
+      // Ignore if file doesn't exist
+    }
+
+    return { success: true };
   });

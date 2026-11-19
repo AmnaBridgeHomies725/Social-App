@@ -12,6 +12,7 @@ import {
   useCreatePostMutation,
   useUploadImageMutation,
 } from "../queries/post";
+import { deleteUploadedImageServerFn } from "../server/post.function";
 
 
 
@@ -48,6 +49,8 @@ async function handleSubmit(event: React.FormEvent) {
 
   setError("");
 
+  let uploadedImageUrl = "";
+
   try {
     let imageUrl = "";
 
@@ -57,6 +60,7 @@ async function handleSubmit(event: React.FormEvent) {
         await uploadImageMutation.mutateAsync(imageFile);
 
       imageUrl = uploadResult.imageUrl;
+      uploadedImageUrl = imageUrl;
     }
 
    
@@ -67,6 +71,14 @@ async function handleSubmit(event: React.FormEvent) {
 
     navigate({ to: "/" });
   } catch (err) {
+    if (uploadedImageUrl) {
+      try {
+        await deleteUploadedImageServerFn({
+          data: { imageUrl: uploadedImageUrl },
+        });
+      } catch {}
+    }
+
     setError(
       err instanceof Error
         ? err.message
