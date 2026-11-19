@@ -235,20 +235,24 @@ export const toggleLikeServerFn = createServerFn({
       )
       .limit(1);
 
+    let isLiked = false;
+
     if (existingLike) {
-     
       await pgDb
         .delete(likes)
         .where(eq(likes.id, existingLike.id));
+      isLiked = false;
     } else {
-     
-      await pgDb.insert(likes).values({
-        postId: post.id,
-        userId,
-      });
+      await pgDb
+        .insert(likes)
+        .values({
+          postId: post.id,
+          userId,
+        })
+        .onConflictDoNothing();
+      isLiked = true;
     }
 
-    
     const [countRow] = await pgDb
       .select({
         count: sql<number>`count(*)::int`,
@@ -258,8 +262,8 @@ export const toggleLikeServerFn = createServerFn({
 
     return {
       postId: post.id,
-      likes: countRow.count,
-      isLiked: !existingLike,
+      likes: countRow?.count ?? 0,
+      isLiked,
     };
   });
 
