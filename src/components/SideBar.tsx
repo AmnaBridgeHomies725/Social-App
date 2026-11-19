@@ -1,8 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { authClient } from "../lib/auth-client";
 
 function SideBar() {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
 	const linkClass =
 		"sidebar-link flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent";
@@ -10,6 +12,7 @@ function SideBar() {
 	const activeClass = `${linkClass} bg-accent text-accent-foreground`;
 
 	const handleLogout = async () => {
+		queryClient.clear();
 		await authClient.signOut();
 		navigate({ to: "/login" });
 	};
