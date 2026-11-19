@@ -8,10 +8,10 @@ import type { Post } from "../types/post";
 
 interface PostCardProps {
 	post: Post;
-	currentUser: string;
+	currentUserId?: string;
 }
 
-function PostCard({ post, currentUser }: PostCardProps) {
+function PostCard({ post, currentUserId }: PostCardProps) {
 	const [likes, setLikes] = useState(post.likes);
 	const [liked, setLiked] = useState(post.isLiked ?? false);
 	const [isLiking, setIsLiking] = useState(false);
@@ -39,7 +39,7 @@ function PostCard({ post, currentUser }: PostCardProps) {
 		<Card className="post-card-shell">
 			<CardHeader className="post-card-header">
 				<h3 className="post-card-author">{post.author}</h3>
-				{post.author === currentUser && (
+				{Boolean(post.authorId && currentUserId && post.authorId === currentUserId) && (
 					<Badge variant="secondary">My Post</Badge>
 				)}
 			</CardHeader>

@@ -52,7 +52,7 @@ function SocialFeed() {
 		error
 	} = useSuspenseInfiniteQuery(feedQueryOptions());
 
-	const currentUser = initial.user?.name ?? "";
+	const currentUserId = initial.user?.id ?? "";
 	const feedPosts = data.pages.flatMap((page) => page.posts);
 	const hasMore = hasNextPage;
 
@@ -104,7 +104,7 @@ function SocialFeed() {
 				</Card>
 			) : (
 				feedPosts.map((post) => (
-					<PostCard key={post.id} post={post} currentUser={currentUser} />
+					<PostCard key={post.id} post={post} currentUserId={currentUserId} />
 				))
 			)}
 

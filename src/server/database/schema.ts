@@ -23,6 +23,7 @@ export const posts = pgTable(
   {
     id: serial("id").primaryKey(),
     author: text("author").notNull(),
+    authorId: text("author_id"),
     text: text("text").notNull().default(""),
     imageUrl: text("image_url"),
     createdAt: text("created_at").notNull(),
@@ -66,6 +67,7 @@ export const comments = pgTable(
         onDelete: "cascade",
       }),
     userId: text("user_id").notNull(),
+    authorId: text("author_id"),
     comment: text("comment").notNull(),
    createdAt: text("created_at")
   .notNull()

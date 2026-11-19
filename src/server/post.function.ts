@@ -83,6 +83,7 @@ export const getPostsServerFn = createServerFn({
       .select({
         id: posts.id,
         author: posts.author,
+        authorId: posts.authorId,
         text: posts.text,
         imageUrl: posts.imageUrl,
         createdAt: posts.createdAt,
@@ -119,6 +120,7 @@ export const getPostsServerFn = createServerFn({
       posts: pageRows.map((row) => ({
         id: row.id,
         author: row.author,
+        authorId: row.authorId,
         text: row.text,
         imageUrl: row.imageUrl ?? undefined,
         timestamp: row.createdAt,
@@ -191,6 +193,7 @@ export const createPostServerFn = createServerFn({
     .insert(posts)
     .values({
       author: session.name,
+      authorId: session.id,
       text: data.text,
       imageUrl: data.imageUrl || null,
       createdAt,
@@ -200,6 +203,7 @@ export const createPostServerFn = createServerFn({
   return {
     id: newPost.id,
     author: newPost.author,
+    authorId: newPost.authorId,
     text: newPost.text,
     imageUrl: newPost.imageUrl ?? undefined,
     timestamp: newPost.createdAt,
@@ -332,6 +336,7 @@ export const createCommentServerFn = createServerFn({
       .values({
         postId: data.postId,
         userId: session.name,
+        authorId: session.id,
         comment: data.comment,
       })
       .returning();
@@ -365,6 +370,7 @@ export const getPostByIdServerFn = createServerFn({
       .select({
         id: posts.id,
         author: posts.author,
+        authorId: posts.authorId,
         text: posts.text,
         imageUrl: posts.imageUrl,
         createdAt: posts.createdAt,
@@ -398,6 +404,7 @@ export const getPostByIdServerFn = createServerFn({
     return {
       id: post.id,
       author: post.author,
+      authorId: post.authorId,
       text: post.text,
       imageUrl: post.imageUrl ?? undefined,
       timestamp: post.createdAt,
