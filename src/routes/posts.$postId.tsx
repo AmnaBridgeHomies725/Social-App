@@ -20,14 +20,7 @@ import {
 } from "../queries/post";
 
 import type { Post } from "../types/post";
-
-interface Comment {
-	id: number;
-	post_id: number;
-	user_id: string;
-	comment: string;
-	created_at: string;
-}
+import type { Comment } from "../types/comment";
 
 type PostWithComments = Omit<Post, "comments"> & {
 	comments: Comment[];

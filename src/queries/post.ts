@@ -17,19 +17,10 @@ import {
 } from "#/server/post.function";
 
 import type { Post } from "../types/post";
-
-
-type PostComment = {
-	id: number;
-	post_id: number;
-	user_id: string;
-	comment: string;
-	created_at: string;
-};
-
+import type { Comment } from "../types/comment";
 
 type PostDetailCache = Omit<Post, "comments"> & {
-	comments: PostComment[];
+	comments: Comment[];
 	isLiked?: boolean;
 };
 
