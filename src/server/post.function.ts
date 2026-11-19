@@ -272,11 +272,20 @@ export const createCommentServerFn = createServerFn({
       throw new Error("Invalid post ID");
     }
 
-    if (!data.comment.trim()) {
+    const trimmed = data.comment.trim();
+
+    if (!trimmed) {
       throw new Error("Comment cannot be empty");
     }
 
-    return data;
+    if (trimmed.length > 300) {
+      throw new Error("Comment cannot exceed 300 characters");
+    }
+
+    return {
+      postId: data.postId,
+      comment: trimmed,
+    };
   })
   .handler(async ({ data }) => {
     const session = await getSessionServerFn();
