@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { toggleLikeServerFn } from "../server/post.function";
+import { useToggleLikeMutation } from "../queries/post";
 import type { Post } from "../types/post";
 
 interface PostCardProps {
@@ -12,27 +11,11 @@ interface PostCardProps {
 }
 
 function PostCard({ post, currentUserId }: PostCardProps) {
-	const [likes, setLikes] = useState(post.likes);
-	const [liked, setLiked] = useState(post.isLiked ?? false);
-	const [isLiking, setIsLiking] = useState(false);
+	const likeMutation = useToggleLikeMutation();
 
-	async function handleLike() {
-		if (isLiking) return;
-
-		setIsLiking(true);
-
-		try {
-			const data = await toggleLikeServerFn({
-				data: {
-					postId: post.id,
-				},
-			});
-
-			setLikes(data.likes);
-			setLiked(data.isLiked);
-		} finally {
-			setIsLiking(false);
-		}
+	function handleLike() {
+		if (likeMutation.isPending) return;
+		likeMutation.mutate(post.id);
 	}
 
 	return (
@@ -70,13 +53,13 @@ function PostCard({ post, currentUserId }: PostCardProps) {
 						variant="outline"
 						size="sm"
 						onClick={handleLike}
-						disabled={isLiking}
-						aria-pressed={liked}
+						disabled={likeMutation.isPending}
+						aria-pressed={post.isLiked ?? false}
 					>
-						{liked ? "❤️ Liked" : "❤️ Like"}
+						{post.isLiked ? "❤️ Liked" : "❤️ Like"}
 					</Button>
 
-					<span className="text-sm text-muted-foreground">{likes} Likes</span>
+					<span className="text-sm text-muted-foreground">{post.likes} Likes</span>
 
 					<span className="text-sm text-muted-foreground">
 						{post.comments.length} Comments
