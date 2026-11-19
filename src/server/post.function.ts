@@ -35,13 +35,29 @@ export const getPostsServerFn = createServerFn({
   )
   .handler(async ({ data }) => {
     const session = await getSessionServerFn();
-    const search = `%${data.search?.trim() ?? ""}%`;
+    const escapedSearch = (data.search?.trim() ?? "").replace(/[\\%_]/g, "\\$&");
+    const search = `%${escapedSearch}%`;
 
-    const decoded = data.cursor
-      ? (JSON.parse(
+    let decoded: { createdAt: string; id: number } | null = null;
+    if (data.cursor) {
+      try {
+        const parsed = JSON.parse(
           Buffer.from(data.cursor, "base64url").toString("utf8"),
-        ) as { createdAt: string; id: number })
-      : null;
+        );
+        if (
+          !parsed ||
+          typeof parsed !== "object" ||
+          typeof parsed.createdAt !== "string" ||
+          typeof parsed.id !== "number" ||
+          !Number.isInteger(parsed.id)
+        ) {
+          throw new Error("Invalid cursor");
+        }
+        decoded = { createdAt: parsed.createdAt, id: parsed.id };
+      } catch {
+        throw new Error("Invalid cursor");
+      }
+    }
 
     const conditions = [
       or(
@@ -51,15 +67,16 @@ export const getPostsServerFn = createServerFn({
     ];
 
     if (decoded) {
-      conditions.push(
-        or(
-          lt(posts.createdAt, decoded.createdAt),
-          and(
-            eq(posts.createdAt, decoded.createdAt),
-            lt(posts.id, decoded.id),
-          ),
-        )!,
+      const cursorCondition = or(
+        lt(posts.createdAt, decoded.createdAt),
+        and(
+          eq(posts.createdAt, decoded.createdAt),
+          lt(posts.id, decoded.id),
+        ),
       );
+      if (cursorCondition) {
+        conditions.push(cursorCondition);
+      }
     }
 
     const rows = await pgDb
