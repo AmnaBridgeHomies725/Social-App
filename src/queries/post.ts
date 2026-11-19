@@ -46,6 +46,7 @@ export const feedQueryOptions = () =>
 		queryFn: ({ pageParam }) =>
 			getPostsServerFn({ data: { cursor: pageParam } }),
 		initialPageParam: undefined as string | undefined,
+		staleTime: 30_000,
 		getNextPageParam: (lastPage) =>
 			lastPage.nextCursor ?? undefined,
 	});
