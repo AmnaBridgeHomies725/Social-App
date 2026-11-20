@@ -19,18 +19,15 @@ import {
 	useToggleLikeMutation,
 } from "../queries/post";
 
-import type { Post } from "../types/post";
-import type { Comment } from "../types/comment";
+import type { PostDetail as PostDetailData } from "../types/post";
 
-type PostWithComments = Omit<Post, "comments"> & {
-	comments: Comment[];
-};
+type PostWithComments = PostDetailData;
 
 export const Route = createFileRoute("/posts/$postId")({
 	loader: async ({ params, context }) => {
-		const postId = Number(params.postId);
+		const postId = params.postId;
 
-		if (!Number.isInteger(postId)) {
+		if (!postId) {
 			return null;
 		}
 
@@ -43,16 +40,15 @@ export const Route = createFileRoute("/posts/$postId")({
 
 function PostDetailRoute() {
 	const { postId } = Route.useParams();
-	const id = Number(postId);
 
-	if (!Number.isInteger(id)) {
+	if (!postId) {
 		return <PostDetail post={null} />;
 	}
 
-	return <PostDetailWithQuery postId={id} />;
+	return <PostDetailWithQuery postId={postId} />;
 }
 
-function PostDetailWithQuery({ postId }: { postId: number }) {
+function PostDetailWithQuery({ postId }: { postId: string }) {
 	const { data: post } = useSuspenseQuery(postDetailQueryOptions(postId));
 
 	return <PostDetail post={post} />;
@@ -192,7 +188,7 @@ function PostDetail({ post }: PostDetailProps) {
 										key={comment.id}
 										className="rounded-lg bg-muted p-3 text-sm"
 									>
-										<p className="font-semibold">{comment.user_id}</p>
+										<p className="font-semibold">{comment.author_name}</p>
 
 										<p className="mt-1 whitespace-pre-wrap">
 											{comment.comment}
