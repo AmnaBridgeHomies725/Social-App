@@ -8,14 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
-// Legacy users table
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  name: text("name"),
-  email: text("email").unique(),
-  passwordHash: text("password_hash"),
-  createdAt: text("created_at"),
-});
+
 
 // Posts table
 export const posts = pgTable(
