@@ -10,14 +10,12 @@ import { posts, likes, comments, user } from "./database/schema";
 
 import pgDb from "./database/postgres-db";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function assertUuid(value: unknown, message = "Invalid ID"): string {
-  if (typeof value !== "string" || !UUID_REGEX.test(value)) {
-    throw new Error(message);
+function parsePostId(value: unknown): number {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid post ID");
   }
-  return value;
+  return id;
 }
 
 export const getPostsServerFn = createServerFn({
@@ -61,13 +59,11 @@ export const getPostsServerFn = createServerFn({
     ];
 
     if (decoded) {
-      const cursorDate = new Date(decoded.createdAt);
-      const targetDate = !Number.isNaN(cursorDate.getTime()) ? cursorDate : new Date(0);
       const cursorCondition = or(
-        lt(posts.createdAt, targetDate),
+        lt(posts.createdAt, decoded.createdAt),
         and(
-          eq(posts.createdAt, targetDate),
-          sql`${posts.id}::text < ${decoded.id}`,
+          eq(posts.createdAt, decoded.createdAt),
+          lt(posts.id, Number(decoded.id)),
         ),
       );
       if (cursorCondition) {
@@ -80,6 +76,7 @@ export const getPostsServerFn = createServerFn({
         id: posts.id,
         authorId: posts.authorId,
         author: user.name,
+        legacyAuthor: posts.author,
         text: posts.text,
         imageUrl: posts.imageUrl,
         createdAt: posts.createdAt,
@@ -113,14 +110,11 @@ export const getPostsServerFn = createServerFn({
     return {
       posts: pageRows.map((row) => ({
         id: String(row.id),
-        author: row.author ?? "Unknown",
-        authorId: row.authorId,
+        author: row.author ?? row.legacyAuthor ?? "Unknown",
+        authorId: row.authorId ?? undefined,
         text: row.text,
         imageUrl: row.imageUrl ?? undefined,
-        timestamp:
-          row.createdAt instanceof Date
-            ? row.createdAt.toISOString()
-            : new Date(row.createdAt).toISOString(),
+        timestamp: String(row.createdAt),
         likes: row.likes,
         commentCount: row.commentCount,
         isLiked: row.likedByMe > 0,
@@ -130,10 +124,7 @@ export const getPostsServerFn = createServerFn({
         hasMore && last
           ? Buffer.from(
               JSON.stringify({
-                createdAt:
-                  last.createdAt instanceof Date
-                    ? last.createdAt.toISOString()
-                    : new Date(last.createdAt).toISOString(),
+                createdAt: String(last.createdAt),
                 id: String(last.id),
               }),
             ).toString("base64url")
@@ -141,82 +132,72 @@ export const getPostsServerFn = createServerFn({
     };
   });
 
-
 export const createPostServerFn = createServerFn({
-	method: "POST",
+  method: "POST",
 })
-	
-.validator((data: { text: string; imageUrl: string }) => {
-  const trimmedText = data.text.trim();
-  const trimmedImageUrl = data.imageUrl.trim();
+  .validator((data: { text: string; imageUrl: string }) => {
+    const trimmedText = data.text.trim();
+    const trimmedImageUrl = data.imageUrl.trim();
 
-  if (!trimmedText) {
-    throw new Error("Post text cannot be empty.");
-  }
+    if (!trimmedText) {
+      throw new Error("Post text cannot be empty.");
+    }
 
-  if (trimmedText.length > 500) {
-    throw new Error("Post cannot exceed 500 characters.");
-  }
+    if (trimmedText.length > 500) {
+      throw new Error("Post cannot exceed 500 characters.");
+    }
 
-  const isValidExternalUrl =
-    /^https?:\/\/\S+$/i.test(trimmedImageUrl);
+    const isValidExternalUrl = /^https?:\/\/\S+$/i.test(trimmedImageUrl);
+    const isValidLocalUpload =
+      /^\/uploads\/[a-zA-Z0-9-]+\.(jpg|jpeg|png|webp)$/i.test(trimmedImageUrl);
 
-  const isValidLocalUpload =
-    /^\/uploads\/[a-zA-Z0-9-]+\.(jpg|jpeg|png|webp)$/i.test(
-      trimmedImageUrl,
-    );
+    if (trimmedImageUrl && !isValidExternalUrl && !isValidLocalUpload) {
+      throw new Error("Please enter a valid image URL.");
+    }
 
-  if (
-    trimmedImageUrl &&
-    !isValidExternalUrl &&
-    !isValidLocalUpload
-  ) {
-    throw new Error("Please enter a valid image URL.");
-  }
+    return {
+      text: trimmedText,
+      imageUrl: trimmedImageUrl,
+    };
+  })
+  .handler(async ({ data }) => {
+    const session = await getSessionServerFn();
 
-  return {
-    text: trimmedText,
-    imageUrl: trimmedImageUrl,
-  };
-})
+    if (!session) {
+      throw new Error("Unauthorized");
+    }
 
-.handler(async ({ data }) => {
-  const session = await getSessionServerFn();
+    const now = new Date().toISOString();
+    const [newPost] = await pgDb
+      .insert(posts)
+      .values({
+        author: session.name,
+        authorId: session.id,
+        text: data.text,
+        imageUrl: data.imageUrl || null,
+        createdAt: now,
+      })
+      .returning();
 
-  if (!session) {
-    throw new Error("Unauthorized");
-  }
-
-  const [newPost] = await pgDb
-    .insert(posts)
-    .values({
-      authorId: session.id,
-      text: data.text,
-      imageUrl: data.imageUrl || null,
-    })
-    .returning();
-
-  return {
-    id: newPost.id,
-    author: session.name,
-    authorId: newPost.authorId,
-    text: newPost.text,
-    imageUrl: newPost.imageUrl ?? undefined,
-    timestamp: newPost.createdAt.toISOString(),
-    likes: 0,
-    commentCount: 0,
-    isLiked: false,
-    comments: [],
-  };
-});
-
-
+    return {
+      id: String(newPost.id),
+      author: session.name,
+      authorId: newPost.authorId ?? undefined,
+      text: newPost.text,
+      imageUrl: newPost.imageUrl ?? undefined,
+      timestamp: String(newPost.createdAt),
+      likes: 0,
+      commentCount: 0,
+      isLiked: false,
+      comments: [],
+    };
+  });
 
 export const toggleLikeServerFn = createServerFn({
   method: "POST",
 })
-  .validator((data: { postId: string }) => ({
-    postId: assertUuid(data.postId, "Invalid post ID"),
+  .validator((data: { postId: string | number }) => ({
+    postId: parsePostId(data.postId),
   }))
   .handler(async ({ data }) => {
     const session = await getSessionServerFn();
@@ -247,8 +228,7 @@ export const toggleLikeServerFn = createServerFn({
     } else {
       await pgDb
         .insert(likes)
-        .values({ postId: post.id, userId: session.id })
-        .onConflictDoNothing();
+        .values({ postId: post.id, userId: session.id });
       isLiked = true;
     }
 
@@ -260,19 +240,17 @@ export const toggleLikeServerFn = createServerFn({
       .where(eq(likes.postId, post.id));
 
     return {
-      postId: post.id,
+      postId: String(post.id),
       likes: countRow?.count ?? 0,
       isLiked,
     };
   });
 
-
 export const createCommentServerFn = createServerFn({
   method: "POST",
 })
-  .validator((data: { postId: string; comment: string }) => {
-    const postId = assertUuid(data.postId, "Invalid post ID");
-
+  .validator((data: { postId: string | number; comment: string }) => {
+    const postId = parsePostId(data.postId);
     const trimmed = data.comment.trim();
 
     if (!trimmed) {
@@ -305,12 +283,15 @@ export const createCommentServerFn = createServerFn({
       throw new Error("Post not found");
     }
 
+    const now = new Date().toISOString();
     const [newComment] = await pgDb
       .insert(comments)
       .values({
         postId: data.postId,
         authorId: session.id,
+        userId: session.id,
         comment: data.comment,
+        createdAt: now,
       })
       .returning();
 
@@ -319,20 +300,20 @@ export const createCommentServerFn = createServerFn({
     }
 
     return {
-      id: newComment.id,
-      post_id: newComment.postId,
-      author_id: newComment.authorId,
+      id: String(newComment.id),
+      post_id: String(newComment.postId),
+      author_id: String(newComment.authorId ?? newComment.userId ?? ""),
       author_name: session.name,
       comment: newComment.comment,
-      created_at: newComment.createdAt.toISOString(),
+      created_at: String(newComment.createdAt),
     };
   });
 
 export const getPostByIdServerFn = createServerFn({
   method: "GET",
 })
-  .validator((data: { postId: string }) => ({
-    postId: assertUuid(data.postId, "Invalid post ID"),
+  .validator((data: { postId: string | number }) => ({
+    postId: parsePostId(data.postId),
   }))
   .handler(async ({ data }) => {
     const session = await getSessionServerFn();
@@ -341,6 +322,7 @@ export const getPostByIdServerFn = createServerFn({
       .select({
         id: posts.id,
         author: user.name,
+        legacyAuthor: posts.author,
         authorId: posts.authorId,
         text: posts.text,
         imageUrl: posts.imageUrl,
@@ -383,23 +365,26 @@ export const getPostByIdServerFn = createServerFn({
       .orderBy(asc(comments.createdAt), asc(comments.id));
 
     return {
-      id: post.id,
-      author: post.author ?? "Unknown",
-      authorId: post.authorId,
+      id: String(post.id),
+      author: post.author ?? post.legacyAuthor ?? "Unknown",
+      authorId: post.authorId ?? undefined,
       text: post.text,
       imageUrl: post.imageUrl ?? undefined,
-      timestamp: post.createdAt.toISOString(),
+      timestamp: String(post.createdAt),
       likes: post.likes,
       comments: commentRows.map((c) => ({
         ...c,
+        id: String(c.id),
+        post_id: String(c.post_id),
+        author_id: String(c.author_id ?? ""),
         author_name: c.author_name ?? "Unknown",
-        created_at: c.created_at.toISOString(),
+        created_at: String(c.created_at),
       })),
       isLiked: post.likedByMe > 0,
     };
   });
 
-	export const uploadImageServerFn = createServerFn({
+export const uploadImageServerFn = createServerFn({
   method: "POST",
 })
   .validator((data: FormData) => data)
@@ -518,7 +503,7 @@ export const deleteUploadedImageServerFn = createServerFn({
     try {
       await unlink(targetPath);
     } catch {
-      // Ignore if file doesn't exist
+    
     }
 
     return { success: true };
