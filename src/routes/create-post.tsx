@@ -150,7 +150,7 @@ async function handleSubmit(event: React.FormEvent) {
 						{imagePreview && (
   <img
     src={imagePreview}
-    alt="Selected image preview"
+    alt="Selected upload preview"
     className="max-h-80 w-full rounded-lg object-cover"
   />
 )}
