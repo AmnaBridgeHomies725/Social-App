@@ -110,7 +110,7 @@ function PostDetail({ post }: PostDetailProps) {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>{post.author}</CardTitle>
+					<CardTitle>{post.userName}</CardTitle>
 					<p className="text-sm text-muted-foreground">{post.timestamp}</p>
 				</CardHeader>
 
@@ -188,7 +188,7 @@ function PostDetail({ post }: PostDetailProps) {
 										key={comment.id}
 										className="rounded-lg bg-muted p-3 text-sm"
 									>
-										<p className="font-semibold">{comment.author_name}</p>
+										<p className="font-semibold">{comment.user_name}</p>
 
 										<p className="mt-1 whitespace-pre-wrap">
 											{comment.comment}

@@ -21,8 +21,8 @@ function PostCard({ post, currentUserId }: PostCardProps) {
 	return (
 		<Card className="post-card-shell">
 			<CardHeader className="post-card-header">
-				<h3 className="post-card-author">{post.author}</h3>
-				{Boolean(post.authorId && currentUserId && post.authorId === currentUserId) && (
+				<h3 className="post-card-author">{post.userName}</h3>
+				{Boolean(post.userId && currentUserId && post.userId === currentUserId) && (
 					<Badge variant="secondary">My Post</Badge>
 				)}
 			</CardHeader>
@@ -31,7 +31,7 @@ function PostCard({ post, currentUserId }: PostCardProps) {
 				{post.imageUrl && (
 					<img
 						src={post.imageUrl}
-						alt={`${post.author}'s post`}
+						alt={`${post.userName}'s post`}
 						loading="lazy"
 						 width={800}
         height={500}

@@ -74,9 +74,8 @@ export const getPostsServerFn = createServerFn({
     const rows = await pgDb
       .select({
         id: posts.id,
-        authorId: posts.authorId,
-        author: user.name,
-        legacyAuthor: posts.author,
+        userId: posts.userId,
+        userName: user.name,
         text: posts.text,
         imageUrl: posts.imageUrl,
         createdAt: posts.createdAt,
@@ -95,7 +94,7 @@ export const getPostsServerFn = createServerFn({
           : sql<number>`0`,
       })
       .from(posts)
-      .leftJoin(user, eq(posts.authorId, user.id))
+      .leftJoin(user, eq(posts.userId, user.id))
       .where(and(...conditions))
       .orderBy(desc(posts.createdAt), desc(posts.id))
       .limit(data.pageSize + 1);
@@ -110,8 +109,8 @@ export const getPostsServerFn = createServerFn({
     return {
       posts: pageRows.map((row) => ({
         id: String(row.id),
-        author: row.author ?? row.legacyAuthor ?? "Unknown",
-        authorId: row.authorId ?? undefined,
+        userName: row.userName ?? "Unknown",
+        userId: row.userId ?? undefined,
         text: row.text,
         imageUrl: row.imageUrl ?? undefined,
         timestamp: String(row.createdAt),
@@ -171,8 +170,7 @@ export const createPostServerFn = createServerFn({
     const [newPost] = await pgDb
       .insert(posts)
       .values({
-        author: session.name,
-        authorId: session.id,
+        userId: session.id,
         text: data.text,
         imageUrl: data.imageUrl || null,
         createdAt: now,
@@ -181,8 +179,8 @@ export const createPostServerFn = createServerFn({
 
     return {
       id: String(newPost.id),
-      author: session.name,
-      authorId: newPost.authorId ?? undefined,
+      userName: session.name,
+      userId: newPost.userId ?? undefined,
       text: newPost.text,
       imageUrl: newPost.imageUrl ?? undefined,
       timestamp: String(newPost.createdAt),
@@ -288,7 +286,6 @@ export const createCommentServerFn = createServerFn({
       .insert(comments)
       .values({
         postId: data.postId,
-        authorId: session.id,
         userId: session.id,
         comment: data.comment,
         createdAt: now,
@@ -302,8 +299,8 @@ export const createCommentServerFn = createServerFn({
     return {
       id: String(newComment.id),
       post_id: String(newComment.postId),
-      author_id: String(newComment.authorId ?? newComment.userId ?? ""),
-      author_name: session.name,
+      user_id: String(newComment.userId ?? ""),
+      user_name: session.name,
       comment: newComment.comment,
       created_at: String(newComment.createdAt),
     };
@@ -321,9 +318,8 @@ export const getPostByIdServerFn = createServerFn({
     const [post] = await pgDb
       .select({
         id: posts.id,
-        author: user.name,
-        legacyAuthor: posts.author,
-        authorId: posts.authorId,
+        userName: user.name,
+        userId: posts.userId,
         text: posts.text,
         imageUrl: posts.imageUrl,
         createdAt: posts.createdAt,
@@ -342,7 +338,7 @@ export const getPostByIdServerFn = createServerFn({
           : sql<number>`0`,
       })
       .from(posts)
-      .leftJoin(user, eq(posts.authorId, user.id))
+      .leftJoin(user, eq(posts.userId, user.id))
       .where(eq(posts.id, data.postId))
       .limit(1);
 
@@ -354,30 +350,30 @@ export const getPostByIdServerFn = createServerFn({
       .select({
         id: comments.id,
         post_id: comments.postId,
-        author_id: comments.authorId,
-        author_name: user.name,
+        user_id: comments.userId,
+        user_name: user.name,
         comment: comments.comment,
         created_at: comments.createdAt,
       })
       .from(comments)
-      .leftJoin(user, eq(comments.authorId, user.id))
+      .leftJoin(user, eq(comments.userId, user.id))
       .where(eq(comments.postId, data.postId))
       .orderBy(asc(comments.createdAt), asc(comments.id));
 
     return {
       id: String(post.id),
-      author: post.author ?? post.legacyAuthor ?? "Unknown",
-      authorId: post.authorId ?? undefined,
+      userName: post.userName ?? "Unknown",
+      userId: post.userId ?? undefined,
       text: post.text,
       imageUrl: post.imageUrl ?? undefined,
       timestamp: String(post.createdAt),
       likes: post.likes,
       comments: commentRows.map((c) => ({
-        ...c,
         id: String(c.id),
         post_id: String(c.post_id),
-        author_id: String(c.author_id ?? ""),
-        author_name: c.author_name ?? "Unknown",
+        user_id: String(c.user_id ?? ""),
+        user_name: c.user_name ?? "Unknown",
+        comment: c.comment,
         created_at: String(c.created_at),
       })),
       isLiked: post.likedByMe > 0,
@@ -456,18 +452,11 @@ export const uploadImageServerFn = createServerFn({
 
     const filename = `${randomUUID()}${allowedTypes[file.type]}`;
 
-    const uploadDirectory = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-    );
+    const uploadDirectory = path.join(process.cwd(), "public", "uploads");
 
     await mkdir(uploadDirectory, { recursive: true });
 
-    await writeFile(
-      path.join(uploadDirectory, filename),
-      buffer,
-    );
+    await writeFile(path.join(uploadDirectory, filename), buffer);
 
     return {
       imageUrl: `/uploads/${filename}`,
@@ -503,7 +492,7 @@ export const deleteUploadedImageServerFn = createServerFn({
     try {
       await unlink(targetPath);
     } catch {
-    
+      // Ignore if file doesn't exist
     }
 
     return { success: true };
