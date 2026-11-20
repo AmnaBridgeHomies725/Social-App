@@ -22,6 +22,13 @@
       "when": 1795074543450,
       "tag": "0002_sticky_network",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795173783425,
+      "tag": "0003_lovely_ulik",
+      "breakpoints": true
     }
   ]
 }
