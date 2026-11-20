@@ -1,11 +1,21 @@
+import type { PostComment } from "./comment";
+
 export interface Post {
-	id: number;
+	id: string;
 	author: string;
 	authorId?: string | null;
 	text: string;
 	imageUrl?: string;
 	timestamp: string;
 	likes: number;
-	comments: string[];
+	commentCount?: number;
+	comments?: PostComment[];
 	isLiked?: boolean;
+
 }
+
+
+export type PostDetail = Omit<Post, "comments"> & {
+	comments: PostComment[];
+	isLiked?: boolean;
+};
