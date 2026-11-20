@@ -62,12 +62,12 @@ function PostCard({ post, currentUserId }: PostCardProps) {
 					<span className="text-sm text-muted-foreground">{post.likes} Likes</span>
 
 					<span className="text-sm text-muted-foreground">
-						{post.comments.length} Comments
+						{post.commentCount ?? 0} Comments
 					</span>
 
 					<Link
 						to="/posts/$postId"
-						params={{ postId: String(post.id) }}
+						params={{ postId: post.id }}
 						className="post-card-details-link"
 					>
 						View Details →
