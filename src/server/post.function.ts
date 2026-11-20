@@ -4,24 +4,21 @@ import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import {
-  and,
-  desc,
-  ilike,
-  sql,
-  lt,
-  or,
-  eq,
-  asc,
-} from "drizzle-orm";
+import { and, desc, ilike, sql, lt, or, eq, asc } from "drizzle-orm";
 
-import {
-  posts,
-  likes,
-  comments,
-} from "./database/schema";
+import { posts, likes, comments, user } from "./database/schema";
 
 import pgDb from "./database/postgres-db";
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function assertUuid(value: unknown, message = "Invalid ID"): string {
+  if (typeof value !== "string" || !UUID_REGEX.test(value)) {
+    throw new Error(message);
+  }
+  return value;
+}
 
 export const getPostsServerFn = createServerFn({
   method: "GET",
@@ -38,7 +35,7 @@ export const getPostsServerFn = createServerFn({
     const escapedSearch = (data.search?.trim() ?? "").replace(/[\\%_]/g, "\\$&");
     const search = `%${escapedSearch}%`;
 
-    let decoded: { createdAt: string; id: number } | null = null;
+    let decoded: { createdAt: string; id: string } | null = null;
     if (data.cursor) {
       try {
         const parsed = JSON.parse(
@@ -47,31 +44,30 @@ export const getPostsServerFn = createServerFn({
         if (
           !parsed ||
           typeof parsed !== "object" ||
-          typeof parsed.createdAt !== "string" ||
-          typeof parsed.id !== "number" ||
-          !Number.isInteger(parsed.id)
+          !parsed.createdAt ||
+          parsed.id === undefined ||
+          parsed.id === null
         ) {
           throw new Error("Invalid cursor");
         }
-        decoded = { createdAt: parsed.createdAt, id: parsed.id };
+        decoded = { createdAt: String(parsed.createdAt), id: String(parsed.id) };
       } catch {
         throw new Error("Invalid cursor");
       }
     }
 
     const conditions = [
-      or(
-        ilike(posts.text, search),
-        ilike(posts.author, search),
-      ),
+      or(ilike(posts.text, search), ilike(user.name, search)),
     ];
 
     if (decoded) {
+      const cursorDate = new Date(decoded.createdAt);
+      const targetDate = !Number.isNaN(cursorDate.getTime()) ? cursorDate : new Date(0);
       const cursorCondition = or(
-        lt(posts.createdAt, decoded.createdAt),
+        lt(posts.createdAt, targetDate),
         and(
-          eq(posts.createdAt, decoded.createdAt),
-          lt(posts.id, decoded.id),
+          eq(posts.createdAt, targetDate),
+          sql`${posts.id}::text < ${decoded.id}`,
         ),
       );
       if (cursorCondition) {
@@ -82,29 +78,27 @@ export const getPostsServerFn = createServerFn({
     const rows = await pgDb
       .select({
         id: posts.id,
-        author: posts.author,
         authorId: posts.authorId,
+        author: user.name,
         text: posts.text,
         imageUrl: posts.imageUrl,
         createdAt: posts.createdAt,
         likes: sql<number>`(
-          SELECT COUNT(*)::int
-          FROM "likes"
-          WHERE "likes"."post_id" = "posts"."id"
+          SELECT COUNT(*)::int FROM "likes" WHERE "likes"."post_id" = "posts"."id"
         )`,
         commentCount: sql<number>`(
-          SELECT COUNT(*)::int
-          FROM "comments"
-          WHERE "comments"."post_id" = "posts"."id"
+          SELECT COUNT(*)::int FROM "comments" WHERE "comments"."post_id" = "posts"."id"
         )`,
-        likedByMe: sql<number>`(
-          SELECT COUNT(*)::int
-          FROM "likes"
-          WHERE "likes"."post_id" = "posts"."id"
-          AND "likes"."user_id" = ${session?.id ?? ""}
-        )`,
+        likedByMe: session
+          ? sql<number>`(
+              SELECT COUNT(*)::int FROM "likes"
+              WHERE "likes"."post_id" = "posts"."id"
+              AND "likes"."user_id" = ${session.id}
+            )`
+          : sql<number>`0`,
       })
       .from(posts)
+      .leftJoin(user, eq(posts.authorId, user.id))
       .where(and(...conditions))
       .orderBy(desc(posts.createdAt), desc(posts.id))
       .limit(data.pageSize + 1);
@@ -118,14 +112,17 @@ export const getPostsServerFn = createServerFn({
 
     return {
       posts: pageRows.map((row) => ({
-        id: row.id,
-        author: row.author,
+        id: String(row.id),
+        author: row.author ?? "Unknown",
         authorId: row.authorId,
         text: row.text,
         imageUrl: row.imageUrl ?? undefined,
-        timestamp: row.createdAt,
+        timestamp:
+          row.createdAt instanceof Date
+            ? row.createdAt.toISOString()
+            : new Date(row.createdAt).toISOString(),
         likes: row.likes,
-        comments: new Array(row.commentCount).fill(""),
+        commentCount: row.commentCount,
         isLiked: row.likedByMe > 0,
       })),
       hasMore,
@@ -133,8 +130,11 @@ export const getPostsServerFn = createServerFn({
         hasMore && last
           ? Buffer.from(
               JSON.stringify({
-                createdAt: last.createdAt,
-                id: last.id,
+                createdAt:
+                  last.createdAt instanceof Date
+                    ? last.createdAt.toISOString()
+                    : new Date(last.createdAt).toISOString(),
+                id: String(last.id),
               }),
             ).toString("base64url")
           : null,
@@ -187,27 +187,25 @@ export const createPostServerFn = createServerFn({
     throw new Error("Unauthorized");
   }
 
-  const createdAt = new Date().toISOString();
-
   const [newPost] = await pgDb
     .insert(posts)
     .values({
-      author: session.name,
       authorId: session.id,
       text: data.text,
       imageUrl: data.imageUrl || null,
-      createdAt,
     })
     .returning();
 
   return {
     id: newPost.id,
-    author: newPost.author,
+    author: session.name,
     authorId: newPost.authorId,
     text: newPost.text,
     imageUrl: newPost.imageUrl ?? undefined,
-    timestamp: newPost.createdAt,
+    timestamp: newPost.createdAt.toISOString(),
     likes: 0,
+    commentCount: 0,
+    isLiked: false,
     comments: [],
   };
 });
@@ -217,13 +215,9 @@ export const createPostServerFn = createServerFn({
 export const toggleLikeServerFn = createServerFn({
   method: "POST",
 })
-  .validator((data: { postId: number }) => {
-    if (!Number.isInteger(data.postId)) {
-      throw new Error("Invalid post ID");
-    }
-
-    return data;
-  })
+  .validator((data: { postId: string }) => ({
+    postId: assertUuid(data.postId, "Invalid post ID"),
+  }))
   .handler(async ({ data }) => {
     const session = await getSessionServerFn();
 
@@ -231,7 +225,6 @@ export const toggleLikeServerFn = createServerFn({
       throw new Error("Unauthorized");
     }
 
-    
     const [post] = await pgDb
       .select({ id: posts.id })
       .from(posts)
@@ -242,34 +235,19 @@ export const toggleLikeServerFn = createServerFn({
       throw new Error("Post not found");
     }
 
-    const userId = session.id;
+    const removed = await pgDb
+      .delete(likes)
+      .where(and(eq(likes.postId, post.id), eq(likes.userId, session.id)))
+      .returning({ postId: likes.postId });
 
+    let isLiked: boolean;
 
-    const [existingLike] = await pgDb
-      .select({ id: likes.id })
-      .from(likes)
-      .where(
-        and(
-          eq(likes.postId, post.id),
-          eq(likes.userId, userId),
-        ),
-      )
-      .limit(1);
-
-    let isLiked = false;
-
-    if (existingLike) {
-      await pgDb
-        .delete(likes)
-        .where(eq(likes.id, existingLike.id));
+    if (removed.length > 0) {
       isLiked = false;
     } else {
       await pgDb
         .insert(likes)
-        .values({
-          postId: post.id,
-          userId,
-        })
+        .values({ postId: post.id, userId: session.id })
         .onConflictDoNothing();
       isLiked = true;
     }
@@ -292,10 +270,8 @@ export const toggleLikeServerFn = createServerFn({
 export const createCommentServerFn = createServerFn({
   method: "POST",
 })
-  .validator((data: { postId: number; comment: string }) => {
-    if (!Number.isInteger(data.postId)) {
-      throw new Error("Invalid post ID");
-    }
+  .validator((data: { postId: string; comment: string }) => {
+    const postId = assertUuid(data.postId, "Invalid post ID");
 
     const trimmed = data.comment.trim();
 
@@ -308,7 +284,7 @@ export const createCommentServerFn = createServerFn({
     }
 
     return {
-      postId: data.postId,
+      postId,
       comment: trimmed,
     };
   })
@@ -319,7 +295,6 @@ export const createCommentServerFn = createServerFn({
       throw new Error("Unauthorized");
     }
 
-   
     const [post] = await pgDb
       .select({ id: posts.id })
       .from(posts)
@@ -330,12 +305,10 @@ export const createCommentServerFn = createServerFn({
       throw new Error("Post not found");
     }
 
-    
     const [newComment] = await pgDb
       .insert(comments)
       .values({
         postId: data.postId,
-        userId: session.name,
         authorId: session.id,
         comment: data.comment,
       })
@@ -348,29 +321,26 @@ export const createCommentServerFn = createServerFn({
     return {
       id: newComment.id,
       post_id: newComment.postId,
-      user_id: newComment.userId,
+      author_id: newComment.authorId,
+      author_name: session.name,
       comment: newComment.comment,
-      created_at: newComment.createdAt,
+      created_at: newComment.createdAt.toISOString(),
     };
   });
 
 export const getPostByIdServerFn = createServerFn({
   method: "GET",
 })
-  .validator((data: { postId: number }) => {
-    if (!Number.isInteger(data.postId)) {
-      throw new Error("Invalid post ID");
-    }
-
-    return data;
-  })
+  .validator((data: { postId: string }) => ({
+    postId: assertUuid(data.postId, "Invalid post ID"),
+  }))
   .handler(async ({ data }) => {
     const session = await getSessionServerFn();
 
     const [post] = await pgDb
       .select({
         id: posts.id,
-        author: posts.author,
+        author: user.name,
         authorId: posts.authorId,
         text: posts.text,
         imageUrl: posts.imageUrl,
@@ -380,14 +350,17 @@ export const getPostByIdServerFn = createServerFn({
           FROM "likes"
           WHERE "likes"."post_id" = "posts"."id"
         )`,
-        likedByMe: sql<number>`(
-          SELECT COUNT(*)::int
-          FROM "likes"
-          WHERE "likes"."post_id" = "posts"."id"
-          AND "likes"."user_id" = ${session?.id ?? ""}
-        )`,
+        likedByMe: session
+          ? sql<number>`(
+              SELECT COUNT(*)::int
+              FROM "likes"
+              WHERE "likes"."post_id" = "posts"."id"
+              AND "likes"."user_id" = ${session.id}
+            )`
+          : sql<number>`0`,
       })
       .from(posts)
+      .leftJoin(user, eq(posts.authorId, user.id))
       .where(eq(posts.id, data.postId))
       .limit(1);
 
@@ -395,28 +368,33 @@ export const getPostByIdServerFn = createServerFn({
       return null;
     }
 
-
     const commentRows = await pgDb
       .select({
         id: comments.id,
         post_id: comments.postId,
-        user_id: comments.userId,
+        author_id: comments.authorId,
+        author_name: user.name,
         comment: comments.comment,
         created_at: comments.createdAt,
       })
       .from(comments)
+      .leftJoin(user, eq(comments.authorId, user.id))
       .where(eq(comments.postId, data.postId))
       .orderBy(asc(comments.createdAt), asc(comments.id));
 
     return {
       id: post.id,
-      author: post.author,
+      author: post.author ?? "Unknown",
       authorId: post.authorId,
       text: post.text,
       imageUrl: post.imageUrl ?? undefined,
-      timestamp: post.createdAt,
+      timestamp: post.createdAt.toISOString(),
       likes: post.likes,
-      comments: commentRows,
+      comments: commentRows.map((c) => ({
+        ...c,
+        author_name: c.author_name ?? "Unknown",
+        created_at: c.created_at.toISOString(),
+      })),
       isLiked: post.likedByMe > 0,
     };
   });
