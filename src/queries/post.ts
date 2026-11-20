@@ -1,4 +1,3 @@
-
 import {
 	infiniteQueryOptions,
 	queryOptions,
@@ -16,20 +15,13 @@ import {
 	uploadImageServerFn,
 } from "#/server/post.function";
 
-import type { Post } from "../types/post";
-import type { Comment } from "../types/comment";
-
-type PostDetailCache = Omit<Post, "comments"> & {
-	comments: Comment[];
-	isLiked?: boolean;
-};
+import type { PostDetail } from "../types/post";
 
 export const postKeys = {
 	all: ["posts"] as const,
 	feed: () => [...postKeys.all, "feed"] as const,
-	detail: (id: number) => [...postKeys.all, "detail", id] as const,
+	detail: (id: string) => [...postKeys.all, "detail", id] as const,
 };
-
 
 export const feedQueryOptions = () =>
 	infiniteQueryOptions({
@@ -42,13 +34,11 @@ export const feedQueryOptions = () =>
 			lastPage.nextCursor ?? undefined,
 	});
 
-
-export const postDetailQueryOptions = (postId: number) =>
+export const postDetailQueryOptions = (postId: string) =>
 	queryOptions({
 		queryKey: postKeys.detail(postId),
 		queryFn: () => getPostByIdServerFn({ data: { postId } }),
 	});
-
 
 export function useCreatePostMutation() {
 	const queryClient = useQueryClient();
@@ -83,11 +73,10 @@ export function useToggleLikeMutation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (postId: number) =>
+		mutationFn: (postId: string) =>
 			toggleLikeServerFn({ data: { postId } }),
 
 		onSuccess: (data) => {
-			
 			queryClient.setQueriesData<
 				InfiniteData<Awaited<ReturnType<typeof getPostsServerFn>>>
 			>(
@@ -113,8 +102,7 @@ export function useToggleLikeMutation() {
 				},
 			);
 
-			
-			queryClient.setQueryData<PostDetailCache | null>(
+			queryClient.setQueryData<PostDetail | null>(
 				postKeys.detail(data.postId),
 				(oldPost) => {
 					if (!oldPost) return oldPost;
@@ -130,19 +118,17 @@ export function useToggleLikeMutation() {
 	});
 }
 
-
 export function useCreateCommentMutation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: (data: {
-			postId: number;
+			postId: string;
 			comment: string;
 		}) => createCommentServerFn({ data }),
 
 		onSuccess: async (newComment, variables) => {
-			
-			queryClient.setQueryData<PostDetailCache | null>(
+			queryClient.setQueryData<PostDetail | null>(
 				postKeys.detail(variables.postId),
 				(oldPost) => {
 					if (!oldPost) return oldPost;
@@ -157,7 +143,6 @@ export function useCreateCommentMutation() {
 				},
 			);
 
-			
 			await queryClient.invalidateQueries({
 				queryKey: postKeys.feed(),
 			});
