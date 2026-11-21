@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreatePostRouteImport } from './routes/create-post'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as SavedPostsRouteImport } from './routes/saved-posts'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
+import { Route as UploadsFileRouteImport } from './routes/uploads/$file'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -32,9 +35,19 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SavedPostsRoute = SavedPostsRouteImport.update({
+  id: '/saved-posts',
+  path: '/saved-posts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -47,6 +60,11 @@ const PostsPostIdRoute = PostsPostIdRouteImport.update({
   path: '/posts/$postId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UploadsFileRoute = UploadsFileRouteImport.update({
+  id: '/uploads/$file',
+  path: '/uploads/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -57,18 +75,24 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/saved-posts': typeof SavedPostsRoute
   '/settings': typeof SettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
+  '/uploads/$file': typeof UploadsFileRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/saved-posts': typeof SavedPostsRoute
   '/settings': typeof SettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
+  '/uploads/$file': typeof UploadsFileRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -76,9 +100,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/create-post': typeof CreatePostRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
+  '/saved-posts': typeof SavedPostsRoute
   '/settings': typeof SettingsRoute
   '/posts/$postId': typeof PostsPostIdRoute
+  '/uploads/$file': typeof UploadsFileRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -87,27 +114,36 @@ export interface FileRouteTypes {
     | '/'
     | '/create-post'
     | '/login'
+    | '/profile'
     | '/register'
+    | '/saved-posts'
     | '/settings'
     | '/posts/$postId'
+    | '/uploads/$file'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/create-post'
     | '/login'
+    | '/profile'
     | '/register'
+    | '/saved-posts'
     | '/settings'
     | '/posts/$postId'
+    | '/uploads/$file'
     | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/create-post'
     | '/login'
+    | '/profile'
     | '/register'
+    | '/saved-posts'
     | '/settings'
     | '/posts/$postId'
+    | '/uploads/$file'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -115,9 +151,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreatePostRoute: typeof CreatePostRoute
   LoginRoute: typeof LoginRoute
+  ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
+  SavedPostsRoute: typeof SavedPostsRoute
   SettingsRoute: typeof SettingsRoute
   PostsPostIdRoute: typeof PostsPostIdRoute
+  UploadsFileRoute: typeof UploadsFileRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -144,11 +183,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/saved-posts': {
+      id: '/saved-posts'
+      path: '/saved-posts'
+      fullPath: '/saved-posts'
+      preLoaderRoute: typeof SavedPostsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -165,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PostsPostIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/uploads/$file': {
+      id: '/uploads/$file'
+      path: '/uploads/$file'
+      fullPath: '/uploads/$file'
+      preLoaderRoute: typeof UploadsFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -179,9 +239,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreatePostRoute: CreatePostRoute,
   LoginRoute: LoginRoute,
+  ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
+  SavedPostsRoute: SavedPostsRoute,
   SettingsRoute: SettingsRoute,
   PostsPostIdRoute: PostsPostIdRoute,
+  UploadsFileRoute: UploadsFileRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
