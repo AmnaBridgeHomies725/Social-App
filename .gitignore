@@ -1,4 +1,8 @@
 node_modules
+.env.test
+uploads/
+.output
+.tanstack
 .DS_Store
 dist
 dist-ssr
@@ -15,4 +19,3 @@ todos.json
 *.db-journal
 *.db-wal
 *.db-shm
-public/uploads/
