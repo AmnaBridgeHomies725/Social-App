@@ -6,5 +6,7 @@ import * as schema from "./database/schema";
 export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: "pg", schema }),
 	emailAndPassword: { enabled: true },
-	trustedOrigins: ["http://localhost:3000"],
+	trustedOrigins: [process.env.BETTER_AUTH_URL, "http://localhost:3000"].filter(
+		(value): value is string => Boolean(value),
+	),
 });
