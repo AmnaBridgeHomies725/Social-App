@@ -1,17 +1,19 @@
 import {
+	type InfiniteData,
 	infiniteQueryOptions,
 	queryOptions,
 	useMutation,
 	useQueryClient,
-	type InfiniteData,
 } from "@tanstack/react-query";
 
 import {
-	createPostServerFn,
 	createCommentServerFn,
+	createPostServerFn,
 	getPostByIdServerFn,
 	getPostsServerFn,
+	getSavedPostsServerFn,
 	toggleLikeServerFn,
+	toggleSavePostServerFn,
 	uploadImageServerFn,
 } from "#/server/post.function";
 
@@ -20,6 +22,7 @@ import type { PostDetail } from "../types/post";
 export const postKeys = {
 	all: ["posts"] as const,
 	feed: () => [...postKeys.all, "feed"] as const,
+	saved: () => [...postKeys.all, "saved"] as const,
 	detail: (id: string) => [...postKeys.all, "detail", id] as const,
 };
 
@@ -30,8 +33,14 @@ export const feedQueryOptions = () =>
 			getPostsServerFn({ data: { cursor: pageParam } }),
 		initialPageParam: undefined as string | undefined,
 		staleTime: 30_000,
-		getNextPageParam: (lastPage) =>
-			lastPage.nextCursor ?? undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+	});
+
+export const savedPostsQueryOptions = () =>
+	queryOptions({
+		queryKey: postKeys.saved(),
+		queryFn: () => getSavedPostsServerFn(),
+		staleTime: 30_000,
 	});
 
 export const postDetailQueryOptions = (postId: string) =>
@@ -56,51 +65,47 @@ export function useCreatePostMutation() {
 }
 
 export function useUploadImageMutation() {
-  return useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
+	return useMutation({
+		mutationFn: async (file: File) => {
+			const formData = new FormData();
 
-      formData.append("image", file);
+			formData.append("image", file);
 
-      return uploadImageServerFn({
-        data: formData,
-      });
-    },
-  });
+			return uploadImageServerFn({
+				data: formData,
+			});
+		},
+	});
 }
 
 export function useToggleLikeMutation() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (postId: string) =>
-			toggleLikeServerFn({ data: { postId } }),
+		mutationFn: (postId: string) => toggleLikeServerFn({ data: { postId } }),
 
 		onSuccess: (data) => {
 			queryClient.setQueriesData<
 				InfiniteData<Awaited<ReturnType<typeof getPostsServerFn>>>
-			>(
-				{ queryKey: postKeys.feed() },
-				(oldData) => {
-					if (!oldData) return oldData;
+			>({ queryKey: postKeys.feed() }, (oldData) => {
+				if (!oldData) return oldData;
 
-					return {
-						...oldData,
-						pages: oldData.pages.map((page) => ({
-							...page,
-							posts: page.posts.map((post) =>
-								post.id === data.postId
-									? {
-											...post,
-											likes: data.likes,
-											isLiked: data.isLiked,
-										}
-									: post,
-							),
-						})),
-					};
-				},
-			);
+				return {
+					...oldData,
+					pages: oldData.pages.map((page) => ({
+						...page,
+						posts: page.posts.map((post) =>
+							post.id === data.postId
+								? {
+										...post,
+										likes: data.likes,
+										isLiked: data.isLiked,
+									}
+								: post,
+						),
+					})),
+				};
+			});
 
 			queryClient.setQueryData<PostDetail | null>(
 				postKeys.detail(data.postId),
@@ -118,6 +123,40 @@ export function useToggleLikeMutation() {
 	});
 }
 
+export function useToggleSavePostMutation() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (postId: string) =>
+			toggleSavePostServerFn({ data: { postId } }),
+		onSuccess: (data) => {
+			queryClient.setQueriesData<
+				InfiniteData<Awaited<ReturnType<typeof getPostsServerFn>>>
+			>(
+				{ queryKey: postKeys.feed() },
+				(oldData) =>
+					oldData && {
+						...oldData,
+						pages: oldData.pages.map((page) => ({
+							...page,
+							posts: page.posts.map((post) =>
+								post.id === data.postId
+									? { ...post, isSaved: data.isSaved }
+									: post,
+							),
+						})),
+					},
+			);
+			queryClient.setQueryData<PostDetail | null>(
+				postKeys.detail(data.postId),
+				(oldPost) =>
+					oldPost ? { ...oldPost, isSaved: data.isSaved } : oldPost,
+			);
+			void queryClient.invalidateQueries({ queryKey: postKeys.saved() });
+			void queryClient.invalidateQueries({ queryKey: ["saved", "count"] });
+		},
+	});
+}
+
 export function useCreateCommentMutation() {
 	const queryClient = useQueryClient();
 
@@ -125,6 +164,7 @@ export function useCreateCommentMutation() {
 		mutationFn: (data: {
 			postId: string;
 			comment: string;
+			parentCommentId?: string;
 		}) => createCommentServerFn({ data }),
 
 		onSuccess: async (newComment, variables) => {
@@ -135,10 +175,7 @@ export function useCreateCommentMutation() {
 
 					return {
 						...oldPost,
-						comments: [
-							...oldPost.comments,
-							newComment,
-						],
+						comments: [...oldPost.comments, newComment],
 					};
 				},
 			);

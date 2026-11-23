@@ -1,4 +1,9 @@
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,26 +40,24 @@ function RegisterPage() {
 		setError("");
 
 		if (password.length < 8) {
-			setError("Password kam se kam 8 characters ka hona chahiye.");
+			setError("Password must be at least 8 characters long.");
 			return;
 		}
 
 		setIsLoading(true);
 
-		const { error } = await authClient.signUp.email({
-			name,
-			email,
-			password,
-		});
-
-		setIsLoading(false);
-
-		if (error) {
-			setError(error.message ?? "Registration nahi ho saki.");
-			return;
+		try {
+			const { error } = await authClient.signUp.email({ name, email, password });
+			if (error) {
+				setError(error.message ?? "Registration failed. Please try again.");
+				return;
+			}
+			navigate({ to: "/login" });
+		} catch {
+			setError("Registration failed. Please try again.");
+		} finally {
+			setIsLoading(false);
 		}
-
-		navigate({ to: "/login" });
 	};
 
 	return (

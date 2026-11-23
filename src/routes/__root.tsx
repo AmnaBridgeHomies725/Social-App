@@ -1,4 +1,4 @@
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { lazy, Suspense } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import {
 	createRootRouteWithContext,
@@ -14,26 +14,7 @@ import Sidebar from "../components/SideBar";
 import appCss from "../styles.css?url";
 
 const publicPaths = ["/login", "/register"];
-const THEME_INIT_SCRIPT = `
-(function() {
-  try {
-    var stored = localStorage.getItem('theme');
-    var mode = (stored === 'light' || stored === 'dark') ? stored : 'auto';
-    var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var activeTheme = mode === 'auto' ? (isDark ? 'dark' : 'light') : mode;
-    
-    var root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(activeTheme);
-    
-    if (mode === 'auto') {
-      root.removeAttribute('data-theme');
-    } else {
-      root.setAttribute('data-theme', mode);
-    }
-  } catch(e) {}
-})();
-`;
+const ReactQueryDevtools = import.meta.env.DEV ? lazy(() => import("@tanstack/react-query-devtools").then((module) => ({ default: module.ReactQueryDevtools }))) : null;
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
@@ -67,7 +48,7 @@ function RootComponent() {
 	return (
 		<>
 			<Outlet />
-			<ReactQueryDevtools buttonPosition="bottom-left" />
+			{ReactQueryDevtools && <Suspense><ReactQueryDevtools buttonPosition="bottom-left" /></Suspense>}
 		</>
 	);
 }
@@ -109,11 +90,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
-				<script
-					dangerouslySetInnerHTML={{
-						__html: THEME_INIT_SCRIPT,
-					}}
-				/>
 				<HeadContent />
 			</head>
 

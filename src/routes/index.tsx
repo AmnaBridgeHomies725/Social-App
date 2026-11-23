@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
 	loader: async ({ context }) => {
 		await context.queryClient.ensureInfiniteQueryData(feedQueryOptions());
-
-		return { user: context.user };
 	},
 	pendingComponent: () => (
 	<p className="p-4 text-center" aria-live="polite">
@@ -39,8 +37,6 @@ function FeedError({ error }: { error: unknown }) {
 }
 
 function SocialFeed() {
-	const initial = Route.useLoaderData();
-
 	const {
 		data,
 		fetchNextPage,
@@ -50,7 +46,6 @@ function SocialFeed() {
 		error
 	} = useSuspenseInfiniteQuery(feedQueryOptions());
 
-	const currentUserId = initial.user?.id ?? "";
 	const feedPosts = data.pages.flatMap((page) => page.posts);
 	const hasMore = hasNextPage;
 
@@ -102,7 +97,7 @@ function SocialFeed() {
 				</Card>
 			) : (
 				feedPosts.map((post) => (
-					<PostCard key={post.id} post={post} currentUserId={currentUserId} />
+					<PostCard key={post.id} post={post} />
 				))
 			)}
 

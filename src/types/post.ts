@@ -3,6 +3,7 @@ import type { PostComment } from "./comment";
 export interface Post {
 	id: string;
 	userName: string;
+	userImageUrl?: string | null;
 	userId?: string | null;
 	text: string;
 	imageUrl?: string;
@@ -11,6 +12,7 @@ export interface Post {
 	commentCount?: number;
 	comments?: PostComment[];
 	isLiked?: boolean;
+	isSaved?: boolean;
 }
 
 export type PostDetail = Omit<Post, "comments"> & {

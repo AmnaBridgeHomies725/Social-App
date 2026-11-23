@@ -1,81 +1,20 @@
+import { Bookmark, Heart, MessageCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useToggleLikeMutation } from "../queries/post";
+import { useToggleLikeMutation, useToggleSavePostMutation } from "../queries/post";
 import type { Post } from "../types/post";
+import PostBody from "./PostBody";
 
-interface PostCardProps {
-	post: Post;
-	currentUserId?: string;
-}
-
-function PostCard({ post, currentUserId }: PostCardProps) {
+function PostCard({ post }: { post: Post }) {
 	const likeMutation = useToggleLikeMutation();
-
-	function handleLike() {
-		if (likeMutation.isPending) return;
-		likeMutation.mutate(post.id);
-	}
-
-	return (
-		<Card className="post-card-shell">
-			<CardHeader className="post-card-header">
-				<h3 className="post-card-author">{post.userName}</h3>
-				{Boolean(post.userId && currentUserId && post.userId === currentUserId) && (
-					<Badge variant="secondary">My Post</Badge>
-				)}
-			</CardHeader>
-
-			<CardContent className="post-card-content">
-				{post.imageUrl && (
-					<img
-						src={post.imageUrl}
-						alt={`${post.userName}'s post`}
-						loading="lazy"
-						 width={800}
-        height={500}
-						className="post-card-image"
-					/>
-				)}
-
-				<p className="text-xs text-muted-foreground">
-					{new Date(post.timestamp).toLocaleString()}
-				</p>
-
-				<p className="whitespace-pre-wrap break-words">
-					{post.text || "No text available"}
-				</p>
-
-				<div className="post-card-actions">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={handleLike}
-						disabled={likeMutation.isPending}
-						aria-pressed={post.isLiked ?? false}
-					>
-						{post.isLiked ? "❤️ Liked" : "❤️ Like"}
-					</Button>
-
-					<span className="text-sm text-muted-foreground">{post.likes} Likes</span>
-
-					<span className="text-sm text-muted-foreground">
-						{post.commentCount ?? 0} Comments
-					</span>
-
-					<Link
-						to="/posts/$postId"
-						params={{ postId: post.id }}
-						className="post-card-details-link"
-					>
-						View Details →
-					</Link>
-				</div>
-			</CardContent>
-		</Card>
-	);
+	const saveMutation = useToggleSavePostMutation();
+	return <article className="post-card-shell">
+		<PostBody post={post} summary />
+		<footer className="post-card-action-bar">
+			<button type="button" className={`post-card-action${post.isLiked ? " is-active" : ""}`} onClick={() => likeMutation.mutate(post.id)} disabled={likeMutation.isPending} aria-pressed={post.isLiked ?? false}><Heart size={15} fill={post.isLiked ? "currentColor" : "none"} />{post.isLiked ? "Liked" : "Like"}</button>
+			<Link to="/posts/$postId" params={{ postId: post.id }} className="post-card-action"><MessageCircle size={15} /> Comment</Link>
+			<button type="button" className={`post-card-action${post.isSaved ? " is-saved" : ""}`} onClick={() => saveMutation.mutate(post.id)} disabled={saveMutation.isPending} aria-pressed={post.isSaved ?? false}><Bookmark size={15} fill={post.isSaved ? "currentColor" : "none"} />{post.isSaved ? "Saved" : "Save"}</button>
+		</footer>
+	</article>;
 }
 
 export default PostCard;

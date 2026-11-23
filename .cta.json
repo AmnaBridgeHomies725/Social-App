@@ -3,7 +3,6 @@
   "projectName": "social-app",
   "mode": "file-router",
   "typescript": true,
-  "packageManager": "npm",
   "includeExamples": true,
   "tailwind": true,
   "projectPreset": "default",
